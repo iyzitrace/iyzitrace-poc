@@ -16,6 +16,11 @@ ssh user@host
 
 ## 3.2 Install
 
+Two ways, same result. **A** runs the steps of **B** for you; use B to do it by hand or to see
+exactly what changes on the host.
+
+### A) With the script
+
 With internet on the host (downloads the RPM/DEB from GitHub and checks its SHA-256):
 
 ```bash
@@ -49,6 +54,97 @@ config is valid
 ● otelcol-contrib.service - OpenTelemetry Collector Contrib
      Active: active (running) ...
 health check: OK
+```
+
+### B) By hand, step by step
+
+Run as root (or prefix each command with `sudo`). The examples are for x86_64; on aarch64 replace
+`amd64` with `arm64`.
+
+**1. Download the package and check it.**
+
+RHEL / Rocky / Alma:
+
+```bash
+cd /tmp
+curl -fLO https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.159.0/otelcol-contrib_0.159.0_linux_amd64.rpm
+echo "edf3037b5065738a118d3f21469403fb1249fad17291a803a2ba0ef7d29d74d7  otelcol-contrib_0.159.0_linux_amd64.rpm" | sha256sum -c -
+# otelcol-contrib_0.159.0_linux_amd64.rpm: OK
+```
+
+Debian / Ubuntu:
+
+```bash
+cd /tmp
+curl -fLO https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.159.0/otelcol-contrib_0.159.0_linux_amd64.deb
+echo "4ede8d750d6bf845e353be46cc550f590e6ccdaeeb60aae941cde6ad561877db  otelcol-contrib_0.159.0_linux_amd64.deb" | sha256sum -c -
+```
+
+SHA-256 of the other packages (also published next to each file on the release page as `<file>.sha256`):
+
+| File | SHA-256 |
+|---|---|
+| `otelcol-contrib_0.159.0_linux_arm64.rpm` | `996f2010da2210dae7f50f9661e66595409d6e27c6499b6ea42f0b99c60cce9d` |
+| `otelcol-contrib_0.159.0_linux_arm64.deb` | `430469fbfb48f123d08dfc896973bdc205ba393901cc506e92c9c928698a6d5e` |
+
+No internet on the host: download on another machine, check it the same way, copy it to `/tmp`.
+
+**2. Install it.**
+
+```bash
+rpm -Uvh /tmp/otelcol-contrib_0.159.0_linux_amd64.rpm      # RHEL family
+dpkg -i  /tmp/otelcol-contrib_0.159.0_linux_amd64.deb      # Debian family
+otelcol-contrib --version                                  # otelcol-contrib version 0.159.0
+```
+
+The package creates the user `otelcol-contrib`, the binary `/usr/bin/otelcol-contrib`, the directory
+`/etc/otelcol-contrib/` and the systemd unit `otelcol-contrib.service`. The unit reads its
+environment from `/etc/otelcol-contrib/otelcol-contrib.conf` and starts
+`otelcol-contrib $OTELCOL_OPTIONS`. The package may start it at once with its own sample config;
+the next steps replace that.
+
+**3. Put the config in place.**
+
+```bash
+install -m 0644 /tmp/iyzitrace-collector/config.yaml /etc/otelcol-contrib/config.yaml
+```
+
+**4. Write the environment file** (the URL, the key and the names the config reads):
+
+```bash
+install -m 0640 -o root -g otelcol-contrib /tmp/iyzitrace-collector/otelcol-contrib.conf.example /etc/otelcol-contrib/otelcol-contrib.conf
+vi /etc/otelcol-contrib/otelcol-contrib.conf
+```
+
+Set the four values:
+
+| Line | Value |
+|---|---|
+| `IYZITRACE_INGEST_URL=` | `https://GATEWAY/ingest` (no trailing slash) |
+| `IYZITRACE_API_KEY=` | the department's **agent** key |
+| `IYZITRACE_HOST_NAME=` | the host's name as it should appear in Agent Manager, e.g. the output of `hostname -s` |
+| `IYZITRACE_AGENT_GROUP=` | `java-hosts` (or any group name) |
+
+Keep `OTELCOL_OPTIONS="--config=/etc/otelcol-contrib/config.yaml"`. The file holds a key: mode
+0640, owner `root`, group `otelcol-contrib`.
+
+**5. Validate the config with those values.**
+
+```bash
+( set -a; . /etc/otelcol-contrib/otelcol-contrib.conf; set +a
+  otelcol-contrib validate --config=/etc/otelcol-contrib/config.yaml ) && echo "config is valid"
+```
+
+No output and `config is valid` means it is valid. An error names the line.
+
+**6. Start it, and start it at boot.**
+
+```bash
+systemctl daemon-reload
+systemctl enable otelcol-contrib
+systemctl restart otelcol-contrib
+systemctl status otelcol-contrib --no-pager
+curl -s http://127.0.0.1:13133/ ; echo          # {"status":"Server available", ...}
 ```
 
 ## 3.3 Check

@@ -48,8 +48,15 @@ kubectl create namespace iyzitrace-system
 kubectl create namespace iyzitrace
 ```
 
-**OpenShift:** run `sh $KIT/openshift/scc.sh` instead (it creates both namespaces and grants the
-SCC; see [OpenShift](#openshift)).
+**OpenShift:** also grant the SCC (why: see [OpenShift](#openshift)). Either run
+`sh $KIT/openshift/scc.sh`, which does exactly this, or by hand:
+
+```bash
+oc adm policy add-scc-to-group nonroot-v2 system:serviceaccounts:iyzitrace-system
+oc adm policy add-scc-to-group nonroot-v2 system:serviceaccounts:iyzitrace
+# check: both groups are listed
+oc get scc nonroot-v2 -o jsonpath='{.groups}{"\n"}'
+```
 
 ## 3. Operators (once per cluster)
 
@@ -79,6 +86,17 @@ browsers) reaches it at one HTTPS host name, called `GATEWAY` below.
 | Kubernetes with an Ingress controller | `nginx.ingress` in `values-poc.yaml` | the Ingress host |
 | Kubernetes with Gateway API | `nginx.httpRoute` (see the platform's production install doc) | the HTTPRoute host |
 | **OpenShift** | a Route: `kubectl apply -f $KIT/openshift/route.yaml` | `oc -n iyzitrace get route iyzitrace -o jsonpath='{.spec.host}'` |
+
+**OpenShift, the Route by hand** (the same as `openshift/route.yaml`):
+
+```bash
+oc -n iyzitrace create route edge iyzitrace --service=nginx --port=http --insecure-policy=Redirect
+oc -n iyzitrace annotate route iyzitrace haproxy.router.openshift.io/timeout=5m
+oc -n iyzitrace get route iyzitrace -o jsonpath='{.spec.host}{"\n"}'
+```
+
+Add `--hostname iyzitrace.apps.example.com` to the first command for a fixed name. Until step 6
+finishes, the Route answers 503.
 
 ```bash
 export GATEWAY=iyzitrace.apps.example.com     # your value

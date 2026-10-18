@@ -7,7 +7,7 @@
 | `oc` login with **cluster-admin** | the operators install CRDs; the SCC grant (step 1.2) | `oc auth can-i '*' '*' --all-namespaces` → `yes` |
 | OpenShift 4.11 or later | the `nonroot-v2` SCC exists from 4.11 | `oc get scc nonroot-v2` |
 | A **default StorageClass**, ~125Gi free | 17 PVCs (50Gi object store) | `oc get storageclass` (one marked `(default)`) |
-| Image pulls: ghcr.io, docker.io, quay.io | the platform's images | `platform/kubernetes/check-images.sh` from a machine with the cluster's egress; or ask for a mirror |
+| Image pulls: ghcr.io, docker.io, quay.io | the platform's images | `platform/kubernetes/check-images.sh` from a machine with the cluster's egress, or by hand per line of `platform/kubernetes/images.txt`: `skopeo inspect --raw docker://<image>` (or `podman pull <image>`) must succeed. On OpenShift, from a node: `oc debug node/<node> -- chroot /host podman pull <image>`. Otherwise ask for a mirror |
 | The admin machine reaches `ghcr.io` | `helm` pulls the charts from `oci://ghcr.io/iyzitrace/charts` | `helm show chart oci://ghcr.io/iyzitrace/charts/iyzitrace-platform --version 1.3.1-dev.c44dd8f` |
 | A Route host name (default apps domain is fine) | the only entry point | `oc get ingresses.config cluster -o jsonpath='{.spec.domain}'` |
 | cert-manager installed, or allowed to install | operators' webhooks, internal TLS | `oc get pods -n cert-manager`, or OperatorHub "cert-manager Operator for Red Hat OpenShift" |

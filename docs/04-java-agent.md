@@ -17,21 +17,51 @@ Requirements: Java 11 or later; the collector of step 3 running on the host.
 
 ## 4.1 Download the agent and the extension
 
-On the host (or on a machine with internet, then copy `/opt/otel` to the host):
+Two ways, same result: three files under `/opt/otel`.
+
+```text
+/opt/otel/opentelemetry-javaagent.jar                       agent 2.21.0
+/opt/otel/extensions/appserver-deployment-extension.jar     extension 0.1.0
+/opt/otel/otel-agent.properties                             the settings, edited in 4.2
+```
+
+No internet on the host: do it on a machine that has, then copy `/opt/otel` to the host at the
+same path.
+
+### A) With the script
 
 ```bash
 sudo sh iyzitrace-poc/instrumentation/java/download.sh /opt/otel
 ```
 
-Result, with both SHA-256 checksums verified:
+It downloads both jars, checks their SHA-256, copies `otel-agent.properties` (unless one is
+already there), and makes the directory readable for every user.
 
-```
-/opt/otel/opentelemetry-javaagent.jar                       2.21.0
-/opt/otel/extensions/appserver-deployment-extension.jar     0.1.0
-/opt/otel/otel-agent.properties                             the settings, edit next
+### B) By hand, step by step
+
+```bash
+sudo mkdir -p /opt/otel/extensions
+cd /opt/otel
+
+# 1. The OpenTelemetry Java agent 2.21.0
+sudo curl -fL -o opentelemetry-javaagent.jar \
+  https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.21.0/opentelemetry-javaagent.jar
+echo "5b35ccc6c275fd477a06db01923813e13d99c1a52a20b0ea8ed6576eae177c7d  opentelemetry-javaagent.jar" | sha256sum -c -
+
+# 2. The iyzitrace appserver-deployment extension 0.1.0
+sudo curl -fL -o extensions/appserver-deployment-extension.jar \
+  https://github.com/antreklabs/iyzitrace-otel-java-extensions/releases/download/v0.1.0/appserver-deployment-extension-0.1.0.jar
+echo "c7d81bf27569db099b19a859e5f8cd4f47f6eab7b6fd0a9661d5ef7033a83d9c  extensions/appserver-deployment-extension.jar" | sha256sum -c -
+
+# 3. The settings file from this kit
+sudo cp /path/to/iyzitrace-poc/instrumentation/java/otel-agent.properties /opt/otel/
+
+# 4. Readable by the app server's user (tomcat, jboss, ...)
+sudo chmod -R a+rX /opt/otel
 ```
 
-The app server's user must be able to read `/opt/otel` (the script makes it world-readable).
+Both `sha256sum -c` lines must print `OK`. On macOS, use `shasum -a 256 -c -` instead. The
+extension's checksum is also in the release's `SHA256SUMS` file.
 
 ## 4.2 Settings: `/opt/otel/otel-agent.properties`
 
