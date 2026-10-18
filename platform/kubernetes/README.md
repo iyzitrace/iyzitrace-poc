@@ -4,21 +4,27 @@ Installs the IyziTrace platform with its three Helm charts: operators → object
 The steps are the same on any Kubernetes 1.30+; the places where **OpenShift** differs are marked
 and collected in [OpenShift](#openshift).
 
-All commands run from a machine with `kubectl` (or `oc`) and `helm` 3.14+, with cluster-admin.
+All commands run from a machine with `kubectl` (or `oc`) and `helm` 3.14+, with cluster-admin,
+that can reach `ghcr.io`. The charts are published as OCI artifacts; nothing else is cloned:
 
 ```bash
-git clone https://github.com/antreklabs/iyzitrace-observability-platform.git   # the charts (private: needs access)
-git clone https://github.com/iyzitrace/iyzitrace-poc.git                        # this kit
-cd iyzitrace-observability-platform && git checkout dev && cd ..
+git clone https://github.com/iyzitrace/iyzitrace-poc.git
 export KIT=$PWD/iyzitrace-poc/platform/kubernetes
-cd iyzitrace-observability-platform
+export CHARTS=oci://ghcr.io/iyzitrace/charts
 ```
+
+| Chart | Version | Installs |
+|---|---|---|
+| `$CHARTS/iyzitrace-operators` | `0.1.0-dev.c44dd8f` | the OpenTelemetry and SeaweedFS operators (cluster-wide, once) |
+| `$CHARTS/iyzitrace-storage` | `0.1.0-dev.c44dd8f` | the object store (SeaweedFS) and its buckets |
+| `$CHARTS/iyzitrace-platform` | `1.3.1-dev.c44dd8f` | the platform; its images default to `ghcr.io/iyzitrace/*:dev-c44dd8f` |
+
+They are built from `antreklabs/iyzitrace-observability-platform` `dev` at `c44dd8f`.
 
 Files used here:
 
 | File | What |
 |---|---|
-| [values-iyzitrace-images.yaml](values-iyzitrace-images.yaml) | the six IyziTrace images from `ghcr.io/iyzitrace` (the chart's defaults are not published yet) |
 | [values-poc.yaml](values-poc.yaml) | the PoC's settings: Grafana URL, the public agent URL, the Ingress (not on OpenShift) |
 | [images.txt](images.txt), [check-images.sh](check-images.sh) | every image the install pulls, and a check that each can be pulled |
 | [openshift/scc.sh](openshift/scc.sh), [openshift/route.yaml](openshift/route.yaml) | OpenShift only |
@@ -48,19 +54,20 @@ SCC; see [OpenShift](#openshift)).
 ## 3. Operators (once per cluster)
 
 ```bash
-helm dependency update helm/operators
-helm upgrade --install iyzitrace-operators helm/operators -n iyzitrace-system --wait --timeout 10m
+helm upgrade --install iyzitrace-operators $CHARTS/iyzitrace-operators --version 0.1.0-dev.c44dd8f \
+  -n iyzitrace-system --wait --timeout 10m
 kubectl -n iyzitrace-system get pods          # otel-operator, seaweedfs-operator: Running
 ```
 
 ## 4. Object store
 
 ```bash
-helm upgrade --install iyzitrace-storage helm/storage -n iyzitrace --wait --timeout 10m
+helm upgrade --install iyzitrace-storage $CHARTS/iyzitrace-storage --version 0.1.0-dev.c44dd8f \
+  -n iyzitrace --wait --timeout 10m
 kubectl -n iyzitrace wait bucket --all --for=jsonpath='{.status.phase}'=Ready --timeout=5m
 ```
 
-Do not add the repository's `values-minikube.yaml` on a real cluster: it deletes the store on uninstall.
+The store is kept when the release is uninstalled (`seaweedfs.keep: true`).
 
 ## 5. Decide the public address (GATEWAY)
 
@@ -92,9 +99,8 @@ metrics and logs. The default is the in-cluster nginx Service, which collectors 
 cannot resolve. Without this setting they register, but their metrics and logs never arrive.
 
 ```bash
-helm dependency update helm/platform
-helm upgrade --install iyzitrace helm/platform -n iyzitrace \
-  -f $KIT/values-iyzitrace-images.yaml -f $KIT/values-poc.yaml --wait --timeout 20m
+helm upgrade --install iyzitrace $CHARTS/iyzitrace-platform --version 1.3.1-dev.c44dd8f \
+  -n iyzitrace -f $KIT/values-poc.yaml --wait --timeout 20m
 kubectl -n iyzitrace get pods                                  # 33 pods, all Running
 curl -s https://$GATEWAY/healthz; echo                         # ok
 curl -s -o /dev/null -w '%{http_code}\n' https://$GATEWAY/console/     # 200
@@ -111,7 +117,7 @@ checks ingest, queries, tenant isolation, inventory and the service graph throug
 leaves two test departments behind.
 
 ```bash
-python3 scripts/test-k8s-e2e.py seed --base-url https://$GATEWAY \
+python3 $KIT/tests/test-k8s-e2e.py seed --base-url https://$GATEWAY \
   --state-file ~/iyzitrace-poc-state.json --license-file /path/to/license.lic
 ```
 
@@ -160,8 +166,9 @@ available):
 |---|---|
 | Install: operators, object store, platform | 33/33 pods Running |
 | Licensed gateway/tenant test (`test-k8s-e2e.py seed`) | 40/40 |
-| OpAMP agents, HTTP and WebSocket (`scripts/test-k8s-opamp.go`) | passed |
-| Restart and kill test, 5 minutes, Loki down for 60s (`scripts/test-k8s-restarts.sh`) | 300/300 per signal; SQLite databases kept |
+| OpAMP agents, HTTP and WebSocket | passed |
+| Restart and kill test, 5 minutes, Loki down for 60s | 300/300 per signal; SQLite databases kept |
+| Upgrade to the published OCI charts (`oci://ghcr.io/iyzitrace/charts`), no image overrides | 33/33 Running; all images from `ghcr.io/iyzitrace`; the licensed test's `verify` passed (keys, users and stored data kept) |
 | Plugin setup wizard in a clean Grafana | passed |
 | OTel demo against the platform | data in every signal; 5 agents online, drawer metrics and logs |
 | Test bed (every layer and plugin screen) | 194/197. The 3 others are environment differences: a check that calls a Compose container by name, a region a fresh install attributes to the run, and modules without configuration yet (AI provider, teams) |

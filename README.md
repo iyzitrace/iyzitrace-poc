@@ -46,7 +46,7 @@ directory, so a PoC uses only the parts it needs and new ones can be added.
 |---|---|---|
 | IyziTrace platform images | `dev-c44dd8f` (amd64 + arm64) | `ghcr.io/iyzitrace/*`, public |
 | Patched Thanos | `v0.42.4-iyz.1` | `ghcr.io/iyzitrace/thanos` |
-| Platform charts | `dev` at `c44dd8f` or later | [antreklabs/iyzitrace-observability-platform](https://github.com/antreklabs/iyzitrace-observability-platform) (private) |
+| Platform charts | `iyzitrace-operators`/`iyzitrace-storage` `0.1.0-dev.c44dd8f`, `iyzitrace-platform` `1.3.1-dev.c44dd8f` | `oci://ghcr.io/iyzitrace/charts`, public |
 | OpenTelemetry Collector contrib | 0.159.0 | GitHub releases, SHA-256 checked by `install.sh` |
 | OpenTelemetry Java agent | 2.21.0 | GitHub releases, SHA-256 checked by `download.sh` |
 | appserver-deployment extension | 0.1.0 | [antreklabs/iyzitrace-otel-java-extensions](https://github.com/antreklabs/iyzitrace-otel-java-extensions) releases, SHA-256 checked |
