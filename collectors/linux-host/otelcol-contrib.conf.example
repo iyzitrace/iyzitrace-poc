@@ -1,0 +1,24 @@
+# /etc/otelcol-contrib/otelcol-contrib.conf
+# Read by the otelcol-contrib systemd service (EnvironmentFile). Mode 0640, owner root:otelcol-contrib:
+# it holds the department's agent key.
+
+# The collector's command line (the package's default).
+OTELCOL_OPTIONS="--config=/etc/otelcol-contrib/config.yaml"
+
+# The IyziTrace gateway (Ingress host, or the Route on OpenShift) + /ingest. No trailing slash.
+IYZITRACE_INGEST_URL=https://GATEWAY/ingest
+
+# The department's AGENT key (console -> Departments -> the department -> API keys).
+IYZITRACE_API_KEY=REPLACE-WITH-AGENT-KEY
+
+# How this host appears in Agent Manager, and its group there.
+IYZITRACE_HOST_NAME=REPLACE-WITH-HOSTNAME
+IYZITRACE_AGENT_GROUP=java-hosts
+
+# Optional: attributes added to the host metrics (resource_detection's env detector),
+# e.g. the environment. Comma-separated key=value pairs.
+# OTEL_RESOURCE_ATTRIBUTES=deployment.environment.name=poc
+
+# Only if the host reaches the gateway through an HTTP proxy:
+# HTTPS_PROXY=http://proxy.example:8080
+# NO_PROXY=localhost,127.0.0.1

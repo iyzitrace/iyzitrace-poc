@@ -1,0 +1,218 @@
+# OpenTelemetry Collector (contrib 0.159.0) for a Linux host that runs Java application servers.
+#
+#   Java app server (OTel Java agent + iyzitrace appserver-deployment extension)
+#     --OTLP, localhost:4317/4318-->  this collector  --OTLP/HTTPS + agent key-->  IyziTrace on OpenShift
+#
+# Pipelines:
+#   traces, logs   from the Java agent. One service.name per application (not per server), from the
+#                  extension's appserver.deployment.* attributes (see docs/04-java-agent.md, "Service names").
+#   metrics        from the Java agent (jvm.*, http.server.*), per server.
+#   metrics/host   CPU, memory, disk, filesystem, network, load, paging and processes of this host.
+#
+# The collector registers with IyziTrace's Agent Manager over OpAMP and sends its own metrics and logs
+# there, so it shows up with its health and effective configuration.
+#
+# Every value that differs per site or host comes from the environment
+# (/etc/otelcol-contrib/otelcol-contrib.conf, see otelcol-contrib.conf.example).
+
+receivers:
+  # The Java agent on this host. Bound to localhost: the agents run on the same machine.
+  # If app servers on other machines send to this collector, change both to 0.0.0.0 and open the
+  # ports in the host firewall for those machines only.
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 127.0.0.1:4317
+      http:
+        endpoint: 127.0.0.1:4318
+
+  host_metrics:
+    collection_interval: 30s
+    scrapers:
+      cpu:
+        metrics:
+          system.cpu.utilization:
+            enabled: true
+      load: {}
+      memory:
+        metrics:
+          system.memory.utilization:
+            enabled: true
+          system.memory.limit:
+            enabled: true
+      paging: {}
+      processes: {}
+      disk:
+        # loop devices and RAM disks are not real disks
+        exclude:
+          devices: ["^(loop|ram)\\d+$"]
+          match_type: regexp
+      filesystem:
+        metrics:
+          system.filesystem.utilization:
+            enabled: true
+        # Only real filesystems (xfs, ext4, vfat for /boot/efi), not kernel and container mounts.
+        exclude_fs_types:
+          fs_types: [autofs, binfmt_misc, bpf, cgroup, cgroup2, configfs, debugfs, devpts, devtmpfs,
+                     fusectl, hugetlbfs, iso9660, mqueue, nsfs, overlay, proc, pstore, rpc_pipefs,
+                     securityfs, selinuxfs, squashfs, sysfs, tmpfs, tracefs]
+          match_type: strict
+        exclude_mount_points:
+          mount_points: ["^/(dev|proc|sys|run)($|/)", "^/var/lib/(containers|docker|kubelet)/", "^/snap/"]
+          match_type: regexp
+      network:
+        # loopback and container / VM virtual interfaces
+        exclude:
+          interfaces: ["^(lo|veth.*|docker\\d+|cni\\d+|podman\\d+|virbr\\d+)$"]
+          match_type: regexp
+      # The Java processes and the collector itself. Reading other users' processes needs the
+      # collector to run as root; as the default otelcol-contrib user, only its own process is read
+      # and the permission errors are muted.
+      process:
+        include:
+          match_type: regexp
+          names: ["^java$", ".*otelcol.*"]
+        mute_process_exe_error: true
+        mute_process_io_error: true
+        mute_process_user_error: true
+        metrics:
+          process.cpu.utilization:
+            enabled: true
+          process.memory.utilization:
+            enabled: true
+          process.uptime:
+            enabled: true
+
+processors:
+  memory_limiter:
+    check_interval: 5s
+    limit_percentage: 80
+    spike_limit_percentage: 25
+
+  # host.name, host.id, os.* for the host metrics, so they match the agent's data from this host
+  # (the Java agent sets host.name too). env reads OTEL_RESOURCE_ATTRIBUTES, if set.
+  resource_detection/host:
+    detectors: [env, system]
+    system:
+      hostname_sources: [os]
+      resource_attributes:
+        host.arch: {enabled: true}
+        host.name: {enabled: true}
+        host.id: {enabled: true}
+        host.ip: {enabled: true}
+        os.type: {enabled: true}
+        os.description: {enabled: true}
+        os.version: {enabled: true}
+
+  # One service.name per application, from the extension's attributes. Spans and log records with
+  # different appserver.deployment.* values end up under different resources.
+  groupbyattrs/deployment:
+    keys:
+      - appserver.deployment.name
+      - appserver.deployment.context_root
+      - appserver.deployment.service.name
+      - appserver.deployment.service.namespace
+
+  # service.name, first match wins (later statements override earlier ones):
+  #   1. otel.service.name the application declares (META-INF/microprofile-config.properties)
+  #   2. the context root without the leading slash (/orders -> orders)
+  #   3. the deployment name (timers, deploy-time work, MDBs, the root context "/")
+  #   otherwise the server-wide otel.service.name stays.
+  # service.namespace: the declared namespace, else the server-wide namespace from the agent
+  # (otel.resource.attributes=service.namespace=...), else the server-wide service.name.
+  transform/deployment-as-service:
+    error_mode: ignore
+    trace_statements:
+      - context: resource
+        statements: &deployment_as_service
+          - set(attributes["service.namespace"], attributes["service.name"]) where attributes["appserver.deployment.name"] != nil and attributes["service.namespace"] == nil
+          - set(attributes["service.name"], attributes["appserver.deployment.name"]) where attributes["appserver.deployment.name"] != nil
+          - set(attributes["service.name"], attributes["appserver.deployment.context_root"]) where attributes["appserver.deployment.context_root"] != nil and attributes["appserver.deployment.context_root"] != "/"
+          - replace_pattern(attributes["service.name"], "^/", "") where attributes["appserver.deployment.context_root"] != nil and attributes["appserver.deployment.context_root"] != "/"
+          - set(attributes["service.name"], attributes["appserver.deployment.service.name"]) where attributes["appserver.deployment.service.name"] != nil
+          - set(attributes["service.namespace"], attributes["appserver.deployment.service.namespace"]) where attributes["appserver.deployment.service.namespace"] != nil
+    log_statements:
+      - context: resource
+        statements: *deployment_as_service
+
+exporters:
+  otlp_http/iyzitrace:
+    # https://GATEWAY/ingest/otlp ; the exporter appends /v1/traces, /v1/metrics, /v1/logs
+    endpoint: ${env:IYZITRACE_INGEST_URL}/otlp
+    headers:
+      Authorization: Bearer ${env:IYZITRACE_API_KEY}
+    # Uncomment when the gateway's certificate is signed by a private CA:
+    # tls:
+    #   ca_file: /etc/otelcol-contrib/iyzitrace-ca.pem
+    sending_queue:
+      batch:
+    retry_on_failure:
+      enabled: true
+      max_elapsed_time: 10m
+
+extensions:
+  health_check:
+    endpoint: 127.0.0.1:13133
+  # Registration with IyziTrace's Agent Manager (status, health, effective configuration).
+  opamp:
+    server:
+      http:
+        endpoint: ${env:IYZITRACE_INGEST_URL}/opamp/v1/http
+        polling_interval: 30s
+        headers:
+          iyzitrace-api-key: ${env:IYZITRACE_API_KEY}
+        # tls:
+        #   ca_file: /etc/otelcol-contrib/iyzitrace-ca.pem
+    agent_description:
+      include_resource_attributes: true
+    capabilities:
+      reports_effective_config: true
+      reports_health: true
+      reports_available_components: true
+
+service:
+  extensions: [health_check, opamp]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, groupbyattrs/deployment, transform/deployment-as-service]
+      exporters: [otlp_http/iyzitrace]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, groupbyattrs/deployment, transform/deployment-as-service]
+      exporters: [otlp_http/iyzitrace]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter]
+      exporters: [otlp_http/iyzitrace]
+    metrics/host:
+      receivers: [host_metrics]
+      processors: [memory_limiter, resource_detection/host]
+      exporters: [otlp_http/iyzitrace]
+
+  # The collector's own metrics and logs, shown in Agent Manager for this collector.
+  telemetry:
+    metrics:
+      level: detailed
+      readers:
+        - periodic:
+            exporter:
+              otlp:
+                protocol: http/protobuf
+                endpoint: ${env:IYZITRACE_INGEST_URL}/opamp/v1/telemetry/v1/metrics
+                headers:
+                  Authorization: Bearer ${env:IYZITRACE_API_KEY}
+    logs:
+      processors:
+        - batch:
+            exporter:
+              otlp:
+                protocol: http/protobuf
+                endpoint: ${env:IYZITRACE_INGEST_URL}/opamp/v1/telemetry/v1/logs
+                headers:
+                  Authorization: Bearer ${env:IYZITRACE_API_KEY}
+    resource:
+      service.name: otelcol-${env:IYZITRACE_HOST_NAME}
+      service.namespace: infrastructure
+      host.name: ${env:IYZITRACE_HOST_NAME}
+      agent.group_name: ${env:IYZITRACE_AGENT_GROUP}

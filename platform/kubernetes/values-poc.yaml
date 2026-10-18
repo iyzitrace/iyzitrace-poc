@@ -1,0 +1,22 @@
+# PoC settings on top of the chart's values. Fill in, then:
+#   helm upgrade --install iyzitrace helm/platform -n iyzitrace \
+#     -f values-iyzitrace-images.yaml -f values-poc.yaml --wait --timeout 20m
+authService:
+  # The customer Grafana, as the cluster's pods reach it. Agent Manager and the AI settings
+  # verify Grafana Admins with keys fetched from here.
+  grafanaUrl: https://grafana.customer.example
+
+lawrence:
+  # The public gateway (GATEWAY) for collectors outside the cluster, with the trailing slash.
+  agentHttpEndpoint: https://GATEWAY/ingest/opamp/v1/telemetry/
+
+# Kubernetes with an Ingress controller only. On OpenShift, leave this disabled and use
+# openshift/route.yaml.
+nginx:
+  ingress:
+    enabled: false
+    className: nginx
+    host: GATEWAY
+    annotations: {}
+    #   cert-manager.io/cluster-issuer: letsencrypt
+    tlsSecretName: ""

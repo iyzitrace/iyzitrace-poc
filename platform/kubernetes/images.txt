@@ -1,0 +1,21 @@
+# Every image the install pulls (check access, or mirror them). IyziTrace images are amd64 + arm64.
+ghcr.io/iyzitrace/auth-service:dev-c44dd8f
+ghcr.io/iyzitrace/opamp:dev-c44dd8f
+ghcr.io/iyzitrace/inventory-service:dev-c44dd8f
+ghcr.io/iyzitrace/query-guard:dev-c44dd8f
+ghcr.io/iyzitrace/holmes:dev-c44dd8f
+ghcr.io/iyzitrace/thanos:v0.42.4-iyz.1
+ghcr.io/open-telemetry/opentelemetry-operator/opentelemetry-operator:0.144.0
+docker.io/grafana/loki:3.7.8
+docker.io/grafana/tempo:2.10.7
+docker.io/library/nginx:1.30.4-alpine
+docker.io/otel/opentelemetry-collector-contrib:0.159.0
+docker.io/chrislusf/seaweedfs:4.44
+docker.io/chrislusf/seaweedfs-operator:1.0.39
+docker.io/curlimages/curl:8.8.0
+quay.io/prometheus/alertmanager:v0.34.0
+quay.io/prometheus-operator/prometheus-config-reloader:v0.93.1
+# only when cert-manager is installed from the upstream manifest:
+quay.io/jetstack/cert-manager-controller:v1.17.2
+quay.io/jetstack/cert-manager-cainjector:v1.17.2
+quay.io/jetstack/cert-manager-webhook:v1.17.2
