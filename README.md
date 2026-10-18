@@ -40,6 +40,10 @@ directory, so a PoC uses only the parts it needs and new ones can be added.
 | 5 | Check every layer | [docs/05-verify.md](docs/05-verify.md) |
 | — | When something does not work | [docs/06-troubleshooting.md](docs/06-troubleshooting.md) |
 
+Scripts are a convenience, never the only way: every scripted step (`install.sh`, `download.sh`,
+`scc.sh`, `check-images.sh`) is also written out by hand in the doc, with the exact commands the
+script runs, under **B) By hand, step by step**.
+
 ## Versions
 
 | Component | Version | Source |
