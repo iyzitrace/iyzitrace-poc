@@ -13,7 +13,7 @@ directory, so a PoC uses only the parts it needs and new ones can be added.
 
 ## Typical layout: Java app servers on Linux, platform on Kubernetes/OpenShift
 
-```
+```text
  Linux host (each app server machine)                            Kubernetes / OpenShift
 ┌──────────────────────────────────────────────┐               ┌──────────────────────────────┐
 │ Java app server (Tomcat, WildFly/JBoss, ...) │               │ IyziTrace platform           │
