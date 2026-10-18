@@ -1,93 +1,81 @@
-# Platform on Kubernetes (and OpenShift)
+# Install the platform on Kubernetes or OpenShift
 
-Installs the IyziTrace platform with its three Helm charts: operators → object store → platform.
-The steps are the same on any Kubernetes 1.30+; the places where **OpenShift** differs are marked
-and collected in [OpenShift](#openshift).
+The platform is installed with three Helm charts, in this order: the operators, the object store,
+the platform. The steps are the same on Kubernetes and OpenShift. Where OpenShift needs something
+extra, the step says so.
 
-All commands run from a machine with `kubectl` (or `oc`) and `helm` 3.14+, with cluster-admin,
-that can reach `ghcr.io`. The charts are published as OCI artifacts; nothing else is cloned:
+You need `kubectl` (or `oc` on OpenShift) and `helm` 3.14 or later, logged in to the cluster as
+cluster-admin. The machine must reach `ghcr.io`: the charts are downloaded from there.
 
-```bash
-git clone https://github.com/iyzitrace/iyzitrace-poc.git
-export KIT=$PWD/iyzitrace-poc/platform/kubernetes
-export CHARTS=oci://ghcr.io/iyzitrace/charts
-```
+You also need one file from this repository, [values-poc.yaml](values-poc.yaml). Download it or
+clone the repository; the commands below assume you are in the folder that contains it.
 
-| Chart | Version | Installs |
-|---|---|---|
-| `$CHARTS/iyzitrace-operators` | `0.1.0-dev.c44dd8f` | the OpenTelemetry and SeaweedFS operators (cluster-wide, once) |
-| `$CHARTS/iyzitrace-storage` | `0.1.0-dev.c44dd8f` | the object store (SeaweedFS) and its buckets |
-| `$CHARTS/iyzitrace-platform` | `1.3.1-dev.c44dd8f` | the platform; its images default to `ghcr.io/iyzitrace/*:dev-c44dd8f` |
+## 1. Install cert-manager
 
-They are built from `antreklabs/iyzitrace-observability-platform` `dev` at `c44dd8f`.
-
-Files used here:
-
-| File | What |
-|---|---|
-| [values-poc.yaml](values-poc.yaml) | the PoC's settings: Grafana URL, the public agent URL, the Ingress (not on OpenShift) |
-| [images.txt](images.txt), [check-images.sh](check-images.sh) | every image the install pulls, and a check that each can be pulled |
-| [openshift/scc.sh](openshift/scc.sh), [openshift/route.yaml](openshift/route.yaml) | OpenShift only |
-
-## 1. cert-manager
-
-The operators' webhooks and the platform's internal TLS need it. Skip if it is installed
-(`kubectl get pods -n cert-manager`).
+The operators and the platform's internal TLS need cert-manager. If the cluster already has it
+(`kubectl get pods -n cert-manager` lists running pods), skip this step.
 
 ```bash
 kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.17.2/cert-manager.yaml
 kubectl -n cert-manager rollout status deploy/cert-manager-webhook
 ```
 
-**OpenShift:** the "cert-manager Operator for Red Hat OpenShift" from OperatorHub works too.
+You should see `deployment "cert-manager-webhook" successfully rolled out`.
 
-## 2. Namespaces (and on OpenShift, the SCC)
+On OpenShift you can install the "cert-manager Operator for Red Hat OpenShift" from OperatorHub
+instead.
+
+## 2. Create the two namespaces
 
 ```bash
 kubectl create namespace iyzitrace-system
 kubectl create namespace iyzitrace
 ```
 
-**OpenShift:** also grant the SCC (why: see [OpenShift](#openshift)). Either run
-`sh $KIT/openshift/scc.sh`, which does exactly this, or by hand:
+**OpenShift only:** OpenShift starts pods with a random user id, but the charts set fixed non-root
+user ids (for example 1000 and 10001). Allow that in both namespaces:
 
 ```bash
 oc adm policy add-scc-to-group nonroot-v2 system:serviceaccounts:iyzitrace-system
 oc adm policy add-scc-to-group nonroot-v2 system:serviceaccounts:iyzitrace
-# check: both groups are listed
-oc get scc nonroot-v2 -o jsonpath='{.groups}{"\n"}'
 ```
 
-## 3. Operators (once per cluster)
+Without this, the pods are never created and the events say
+`unable to validate against any security context constraint`.
+
+## 3. Install the operators
+
+They install the OpenTelemetry and SeaweedFS operators. Once per cluster.
 
 ```bash
-helm upgrade --install iyzitrace-operators $CHARTS/iyzitrace-operators --version 0.1.0-dev.c44dd8f \
+helm upgrade --install iyzitrace-operators \
+  oci://ghcr.io/iyzitrace/charts/iyzitrace-operators --version 0.1.0-dev.c44dd8f \
   -n iyzitrace-system --wait --timeout 10m
-kubectl -n iyzitrace-system get pods          # otel-operator, seaweedfs-operator: Running
+kubectl -n iyzitrace-system get pods
 ```
 
-## 4. Object store
+You should see two pods running: `otel-operator-...` and `seaweedfs-operator-...`.
+
+## 4. Install the object store
+
+This is SeaweedFS with three buckets: one each for traces, logs and metrics.
 
 ```bash
-helm upgrade --install iyzitrace-storage $CHARTS/iyzitrace-storage --version 0.1.0-dev.c44dd8f \
+helm upgrade --install iyzitrace-storage \
+  oci://ghcr.io/iyzitrace/charts/iyzitrace-storage --version 0.1.0-dev.c44dd8f \
   -n iyzitrace --wait --timeout 10m
 kubectl -n iyzitrace wait bucket --all --for=jsonpath='{.status.phase}'=Ready --timeout=5m
 ```
 
-The store is kept when the release is uninstalled (`seaweedfs.keep: true`).
+You should see three lines ending in `condition met`: `loki-data`, `tempo-data` and
+`thanos-time-series`.
 
-## 5. Decide the public address (GATEWAY)
+## 5. Decide the address everyone will use
 
-nginx is the platform's only entry point. Everything outside the cluster (collectors, Grafana,
-browsers) reaches it at one HTTPS host name, called `GATEWAY` below.
+nginx is the platform's only entry point. Collectors, Grafana and browsers all reach it at one
+HTTPS host name. In the rest of this guide it is written as `<route-host>`.
 
-| Cluster | How nginx is published | GATEWAY |
-|---|---|---|
-| Kubernetes with an Ingress controller | `nginx.ingress` in `values-poc.yaml` | the Ingress host |
-| Kubernetes with Gateway API | `nginx.httpRoute` (see the platform's production install doc) | the HTTPRoute host |
-| **OpenShift** | a Route: `kubectl apply -f $KIT/openshift/route.yaml` | `oc -n iyzitrace get route iyzitrace -o jsonpath='{.spec.host}'` |
-
-**OpenShift, the Route by hand** (the same as `openshift/route.yaml`):
+**OpenShift:** create a Route now and note its host name.
 
 ```bash
 oc -n iyzitrace create route edge iyzitrace --service=nginx --port=http --insecure-policy=Redirect
@@ -95,109 +83,98 @@ oc -n iyzitrace annotate route iyzitrace haproxy.router.openshift.io/timeout=5m
 oc -n iyzitrace get route iyzitrace -o jsonpath='{.spec.host}{"\n"}'
 ```
 
-Add `--hostname iyzitrace.apps.example.com` to the first command for a fixed name. Until step 6
-finishes, the Route answers 503.
+The last command prints the host name, for example `iyzitrace-iyzitrace.apps.cluster.example.com`.
+To choose the name yourself, add `--hostname iyzitrace.apps.cluster.example.com` to the first
+command. The timeout keeps long queries and agent connections open (the router's default is 30
+seconds). The Route answers 503 until step 6 is done.
 
-```bash
-export GATEWAY=iyzitrace.apps.example.com     # your value
-```
+**Kubernetes with an Ingress controller:** choose the host name. In `values-poc.yaml`, set
+`nginx.ingress.enabled: true`, `className` and `host`; the platform chart then creates the Ingress.
 
-## 6. Platform
+## 6. Install the platform
 
-Fill in [values-poc.yaml](values-poc.yaml):
+Open `values-poc.yaml` and set two values:
 
-| Key | Value |
+| Key | Set it to |
 |---|---|
-| `authService.grafanaUrl` | the customer Grafana, as the cluster's pods reach it |
-| `lawrence.agentHttpEndpoint` | `https://GATEWAY/ingest/opamp/v1/telemetry/` (with the trailing slash) |
-| `nginx.ingress.*` | Kubernetes with an Ingress controller only; leave disabled on OpenShift |
+| `authService.grafanaUrl` | the customer's Grafana, as the cluster can reach it, e.g. `https://grafana.customer.local` |
+| `lawrence.agentHttpEndpoint` | `https://<route-host>/ingest/opamp/v1/telemetry/` (keep the slash at the end) |
 
-`lawrence.agentHttpEndpoint` is the address Agent Manager gives managed collectors for their own
-metrics and logs. The default is the in-cluster nginx Service, which collectors on other machines
-cannot resolve. Without this setting they register, but their metrics and logs never arrive.
+The second value tells the collectors on the Linux machines where to send their own metrics and
+logs. Without it they still appear in Agent Manager, but their Metrics and Logs tabs stay empty.
 
 ```bash
-helm upgrade --install iyzitrace $CHARTS/iyzitrace-platform --version 1.3.1-dev.c44dd8f \
-  -n iyzitrace -f $KIT/values-poc.yaml --wait --timeout 20m
-kubectl -n iyzitrace get pods                                  # 33 pods, all Running
-curl -s https://$GATEWAY/healthz; echo                         # ok
-curl -s -o /dev/null -w '%{http_code}\n' https://$GATEWAY/console/     # 200
+helm upgrade --install iyzitrace \
+  oci://ghcr.io/iyzitrace/charts/iyzitrace-platform --version 1.3.1-dev.c44dd8f \
+  -n iyzitrace -f values-poc.yaml --wait --timeout 20m
+kubectl -n iyzitrace get pods
 ```
 
-Base profile (one of each component): about 2 CPU and 3.5Gi memory requested, 17 PVCs (~125Gi,
-50Gi of it the object store) on the default StorageClass. For production sizing and three replicas,
-see the platform's `values-prod.yaml` and `docs/deployment/kubernetes-production-installation.md`.
+The install takes about 5 to 10 minutes. At the end, all 33 pods are `Running`.
 
-## 7. Optional: the licensed end-to-end test
-
-Only on a **fresh** install, **before** the console setup (it creates the administrator itself). It
-checks ingest, queries, tenant isolation, inventory and the service graph through the gateway, and
-leaves two test departments behind.
+Check that the platform answers through the Route (replace `<route-host>`):
 
 ```bash
-python3 $KIT/tests/test-k8s-e2e.py seed --base-url https://$GATEWAY \
+curl -s https://<route-host>/healthz
+curl -s -o /dev/null -w '%{http_code}\n' https://<route-host>/console/
+```
+
+You should see `ok`, then `200`.
+
+Next: [docs/02-console-and-plugin.md](../../docs/02-console-and-plugin.md).
+
+## Optional: the automated end-to-end test
+
+Run this only on a fresh install, before you open the console: it creates the administrator itself.
+It sends test data into two test departments and checks that each department sees only its own
+data, through the Route. You need Python 3 and the licence file.
+
+```bash
+python3 tests/test-k8s-e2e.py seed --base-url https://<route-host> \
   --state-file ~/iyzitrace-poc-state.json --license-file /path/to/license.lic
 ```
 
 The last line must be `PASS: installed Kubernetes platform end-to-end checks`. The administrator it
-created (`helm-e2e`) and its password are in the state file (mode 0600); use them for the console.
+created (user `helm-e2e`) and its password are in `~/iyzitrace-poc-state.json`; log in to the
+console with them.
 
-Next: [docs/02-console-and-plugin.md](../../docs/02-console-and-plugin.md).
+## If something goes wrong
 
----
-
-## OpenShift
-
-Three differences from plain Kubernetes:
-
-1. **SCC (step 2).** OpenShift runs pods under the `restricted-v2` SCC with a random UID. The charts
-   set fixed non-root UIDs: 1000 for the IyziTrace services, 101 for nginx, 10001 for the collectors,
-   Loki and Tempo, 65534 for Alertmanager and 65532 for the operators.
-   [openshift/scc.sh](openshift/scc.sh) grants the built-in `nonroot-v2` SCC (any non-root UID,
-   nothing more) to the service accounts of `iyzitrace-system` and `iyzitrace`. Without it, pods are
-   rejected with `unable to validate against any security context constraint`. Needs OpenShift
-   4.11+ and cluster-admin.
-2. **Route (step 5).** [openshift/route.yaml](openshift/route.yaml): TLS ends at the router (edge),
-   HTTP is redirected, and the router timeout is raised to 5 minutes for OpAMP WebSocket sessions and
-   long queries (the default is 30s). Leave `nginx.ingress` disabled.
-3. **cert-manager (step 1)** can come from OperatorHub.
-
-**What was checked before the first OpenShift PoC** (on Kubernetes, since no OpenShift cluster was
-available):
-
-- **Pod security.** All pods were audited against the Kubernetes `restricted` Pod Security profile.
-  - Unset `seccompProfile`, and Alertmanager's unset privilege escalation and capabilities, are
-    filled in by OpenShift's SCC admission (`RuntimeDefault`, `false`, `drop: [ALL]`).
-  - The fixed UIDs are the remaining difference, and step 2 covers them.
-- **SeaweedFS** sets no UID and stays on `restricted-v2`. It was run from the start as UID
-  1000680000 with group 0, fsGroup, all capabilities dropped and seccomp `RuntimeDefault`. All four
-  pods ran, the buckets became Ready, and an S3 upload and download succeeded. (It fails only if root
-  wrote the same volumes first, which does not happen on OpenShift.)
-- **NetworkPolicy.** OpenShift enforces policies. The chart ships one (the internal Thanos query);
-  it does not touch the Route → nginx path.
-
----
-
-## Rehearsal results (minikube, Kubernetes 1.30, 2026-10-18, platform `dev` at `c44dd8f`)
-
-| Test | Result |
+| What you see | What to do |
 |---|---|
-| Install: operators, object store, platform | 33/33 pods Running |
-| Licensed gateway/tenant test (`test-k8s-e2e.py seed`) | 40/40 |
-| OpAMP agents, HTTP and WebSocket | passed |
-| Restart and kill test, 5 minutes, Loki down for 60s | 300/300 per signal; SQLite databases kept |
-| Upgrade to the published OCI charts (`oci://ghcr.io/iyzitrace/charts`), no image overrides | 33/33 Running; all images from `ghcr.io/iyzitrace`; the licensed test's `verify` passed (keys, users and stored data kept) |
-| Plugin setup wizard in a clean Grafana | passed |
-| OTel demo against the platform | data in every signal; 5 agents online, drawer metrics and logs |
-| Test bed (every layer and plugin screen) | 194/197. The 3 others are environment differences: a check that calls a Compose container by name, a region a fresh install attributes to the run, and modules without configuration yet (AI provider, teams) |
+| Pods are not created; events say `unable to validate against any security context constraint` | OpenShift: the two `oc adm policy` commands of step 2 are missing |
+| Pods stay `Pending` | `kubectl -n iyzitrace describe pod <pod>`: usually no default StorageClass, or not enough CPU or memory |
+| `ImagePullBackOff` | the cluster cannot reach ghcr.io or Docker Hub, or Docker Hub's rate limit was hit: [docs/00-prerequisites.md](../../docs/00-prerequisites.md#images) |
+| The operators never become ready | cert-manager is missing (step 1) |
+| The Route answers 503 for long | `kubectl -n iyzitrace get pods -l app.kubernetes.io/component=nginx`: nginx not ready yet |
 
-## Clean up
+More in [docs/06-troubleshooting.md](../../docs/06-troubleshooting.md).
+
+## Remove it
 
 ```bash
 helm uninstall iyzitrace -n iyzitrace
-helm uninstall iyzitrace-storage -n iyzitrace   # the store is kept (keep: true); delete its PVCs to remove it
+helm uninstall iyzitrace-storage -n iyzitrace
 kubectl delete namespace iyzitrace
 ```
 
-The operators can stay for the next install. Uninstalling them deletes the OpenTelemetry CRDs and
-every collector in the cluster.
+The object store's data stays on its disks until the namespace is deleted.
+
+## What was tested before the first OpenShift PoC
+
+On 2026-10-18, on a local Kubernetes 1.30 (minikube):
+
+- The install from the published charts: 33 of 33 pods running.
+- The end-to-end test above: 40 of 40 checks passed.
+- Real OpAMP agents, over HTTP and WebSocket.
+- A 5-minute restart test while components were killed and Loki was down for 60 seconds: no data
+  lost.
+- The plugin's setup wizard in a clean Grafana.
+- A Java host (see [test/linux-java-host](../../test/linux-java-host/README.md)).
+
+No OpenShift cluster was available, so these were checked another way:
+
+- **Security settings:** every pod passed the Kubernetes "restricted" profile, apart from the fixed
+  user ids that step 2 allows.
+- **SeaweedFS:** it sets no user id, so OpenShift gives it a random one. That was rehearsed with a
+  random id from the start: all its pods ran and S3 reads and writes worked.

@@ -5,10 +5,10 @@
 # The collector's command line (the package's default).
 OTELCOL_OPTIONS="--config=/etc/otelcol-contrib/config.yaml"
 
-# The IyziTrace gateway (Ingress host, or the Route on OpenShift) + /ingest. No trailing slash.
-IYZITRACE_INGEST_URL=https://GATEWAY/ingest
+# The platform's host name followed by /ingest, with no slash at the end.
+IYZITRACE_INGEST_URL=https://ROUTE-HOST/ingest
 
-# The department's AGENT key (console -> Departments -> the department -> API keys).
+# The department's AGENT key (console, API Keys page). Not the reader key.
 IYZITRACE_API_KEY=REPLACE-WITH-AGENT-KEY
 
 # How this host appears in Agent Manager, and its group there.

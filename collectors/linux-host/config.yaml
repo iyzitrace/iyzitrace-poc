@@ -137,7 +137,7 @@ processors:
 
 exporters:
   otlp_http/iyzitrace:
-    # https://GATEWAY/ingest/otlp ; the exporter appends /v1/traces, /v1/metrics, /v1/logs
+    # https://<route-host>/ingest/otlp ; the exporter appends /v1/traces, /v1/metrics, /v1/logs
     endpoint: ${env:IYZITRACE_INGEST_URL}/otlp
     headers:
       Authorization: Bearer ${env:IYZITRACE_API_KEY}

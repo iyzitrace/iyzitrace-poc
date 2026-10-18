@@ -1,78 +1,24 @@
-# 3. Collector on each Linux host
+# 3. Collector on each Linux machine
 
-One collector per host that runs Java app servers. It receives OTLP from the Java agents on the
-same host (127.0.0.1:4317/4318), adds host metrics, and sends everything to IyziTrace through the
-gateway with the department's **agent key**. It also registers with Agent Manager.
+Install one OpenTelemetry Collector on every machine that runs a Java server. The Java agent sends
+its data to this collector on the same machine. The collector adds the machine's own metrics (CPU,
+memory, disk, network) and sends everything to IyziTrace with the department's **agent** key. It
+also shows up in IyziTrace's Agent Manager.
 
-Config: [collector/config.yaml](../collector/config.yaml). Values per site and host:
-[collector/otelcol-contrib.conf.example](../collector/otelcol-contrib.conf.example).
+Run the commands as root, or put `sudo` in front of each. The examples are for x86_64; on arm64
+machines write `arm64` instead of `amd64` in the file names.
 
-## 3.1 Copy the kit to the host
+## 1. Download the collector package
 
-```bash
-scp -r iyzitrace-poc/collectors/linux-host  user@host:/tmp/iyzitrace-collector
-ssh user@host
-```
-
-## 3.2 Install
-
-Two ways, same result. **A** runs the steps of **B** for you; use B to do it by hand or to see
-exactly what changes on the host.
-
-### A) With the script
-
-With internet on the host (downloads the RPM/DEB from GitHub and checks its SHA-256):
-
-```bash
-sudo sh /tmp/iyzitrace-collector/install.sh \
-  --ingest-url https://GATEWAY/ingest \
-  --api-key 'AGENT-KEY' \
-  --host-name "$(hostname -s)" \
-  --group java-hosts
-```
-
-Without internet: download `otelcol-contrib_0.159.0_linux_amd64.rpm` (or `.deb`, or `arm64`) from
-https://github.com/open-telemetry/opentelemetry-collector-releases/releases/tag/v0.159.0 elsewhere,
-copy it to the host, and add `--package /path/to/otelcol-contrib_0.159.0_linux_amd64.rpm`.
-
-What it does:
-
-1. Installs `otelcol-contrib` 0.159.0 (systemd service `otelcol-contrib`, user `otelcol-contrib`).
-2. Puts `config.yaml` in `/etc/otelcol-contrib/`.
-3. Writes `/etc/otelcol-contrib/otelcol-contrib.conf` (mode 0640) with the URL, the key, the host
-   name and the group. The key is never printed.
-4. Validates the config with those values, then enables and restarts the service and calls the
-   health check.
-
-Re-running it updates `config.yaml` and keeps the environment file, unless `--ingest-url` and
-`--api-key` are given again.
-
-Expected end of the output:
-
-```
-config is valid
-● otelcol-contrib.service - OpenTelemetry Collector Contrib
-     Active: active (running) ...
-health check: OK
-```
-
-### B) By hand, step by step
-
-Run as root (or prefix each command with `sudo`). The examples are for x86_64; on aarch64 replace
-`amd64` with `arm64`.
-
-**1. Download the package and check it.**
-
-RHEL / Rocky / Alma:
+RHEL, Rocky or Alma:
 
 ```bash
 cd /tmp
 curl -fLO https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.159.0/otelcol-contrib_0.159.0_linux_amd64.rpm
 echo "edf3037b5065738a118d3f21469403fb1249fad17291a803a2ba0ef7d29d74d7  otelcol-contrib_0.159.0_linux_amd64.rpm" | sha256sum -c -
-# otelcol-contrib_0.159.0_linux_amd64.rpm: OK
 ```
 
-Debian / Ubuntu:
+Debian or Ubuntu:
 
 ```bash
 cd /tmp
@@ -80,95 +26,132 @@ curl -fLO https://github.com/open-telemetry/opentelemetry-collector-releases/rel
 echo "4ede8d750d6bf845e353be46cc550f590e6ccdaeeb60aae941cde6ad561877db  otelcol-contrib_0.159.0_linux_amd64.deb" | sha256sum -c -
 ```
 
-SHA-256 of the other packages (also published next to each file on the release page as `<file>.sha256`):
+The second command must print `OK`: the file is complete and unchanged.
 
-| File | SHA-256 |
-|---|---|
-| `otelcol-contrib_0.159.0_linux_arm64.rpm` | `996f2010da2210dae7f50f9661e66595409d6e27c6499b6ea42f0b99c60cce9d` |
-| `otelcol-contrib_0.159.0_linux_arm64.deb` | `430469fbfb48f123d08dfc896973bdc205ba393901cc506e92c9c928698a6d5e` |
+For arm64 the checksums are `996f2010da2210dae7f50f9661e66595409d6e27c6499b6ea42f0b99c60cce9d`
+(rpm) and `430469fbfb48f123d08dfc896973bdc205ba393901cc506e92c9c928698a6d5e` (deb).
 
-No internet on the host: download on another machine, check it the same way, copy it to `/tmp`.
+If the machine has no internet access, download the file on another computer, check it the same
+way, and copy it to `/tmp` on the machine.
 
-**2. Install it.**
+## 2. Install it
 
 ```bash
-rpm -Uvh /tmp/otelcol-contrib_0.159.0_linux_amd64.rpm      # RHEL family
-dpkg -i  /tmp/otelcol-contrib_0.159.0_linux_amd64.deb      # Debian family
-otelcol-contrib --version                                  # otelcol-contrib version 0.159.0
+rpm -Uvh /tmp/otelcol-contrib_0.159.0_linux_amd64.rpm      # RHEL, Rocky, Alma
+dpkg -i /tmp/otelcol-contrib_0.159.0_linux_amd64.deb        # Debian, Ubuntu
+otelcol-contrib --version
 ```
 
-The package creates the user `otelcol-contrib`, the binary `/usr/bin/otelcol-contrib`, the directory
-`/etc/otelcol-contrib/` and the systemd unit `otelcol-contrib.service`. The unit reads its
-environment from `/etc/otelcol-contrib/otelcol-contrib.conf` and starts
-`otelcol-contrib $OTELCOL_OPTIONS`. The package may start it at once with its own sample config;
-the next steps replace that.
+The last command prints `otelcol-contrib version 0.159.0`.
 
-**3. Put the config in place.**
+The package installs a systemd service called `otelcol-contrib`. Its configuration lives in
+`/etc/otelcol-contrib/`. The package may already have started it with a sample configuration; the
+next steps replace that.
+
+## 3. Put IyziTrace's configuration in place
 
 ```bash
-install -m 0644 /tmp/iyzitrace-collector/config.yaml /etc/otelcol-contrib/config.yaml
+curl -fLo /etc/otelcol-contrib/config.yaml https://raw.githubusercontent.com/iyzitrace/iyzitrace-poc/main/collectors/linux-host/config.yaml
+curl -fLo /etc/otelcol-contrib/otelcol-contrib.conf https://raw.githubusercontent.com/iyzitrace/iyzitrace-poc/main/collectors/linux-host/otelcol-contrib.conf.example
+chown root:otelcol-contrib /etc/otelcol-contrib/otelcol-contrib.conf
+chmod 640 /etc/otelcol-contrib/otelcol-contrib.conf
 ```
 
-**4. Write the environment file** (the URL, the key and the names the config reads):
+Without internet, copy the two files from this repository's `collectors/linux-host/` folder to the
+same places.
+
+`config.yaml` is the same on every machine. `otelcol-contrib.conf` holds the values that differ
+per machine, including the key, so only root and the collector can read it.
+
+## 4. Fill in the values for this machine
 
 ```bash
-install -m 0640 -o root -g otelcol-contrib /tmp/iyzitrace-collector/otelcol-contrib.conf.example /etc/otelcol-contrib/otelcol-contrib.conf
 vi /etc/otelcol-contrib/otelcol-contrib.conf
 ```
 
-Set the four values:
+Change these four lines:
 
-| Line | Value |
-|---|---|
-| `IYZITRACE_INGEST_URL=` | `https://GATEWAY/ingest` (no trailing slash) |
-| `IYZITRACE_API_KEY=` | the department's **agent** key |
-| `IYZITRACE_HOST_NAME=` | the host's name as it should appear in Agent Manager, e.g. the output of `hostname -s` |
-| `IYZITRACE_AGENT_GROUP=` | `java-hosts` (or any group name) |
+```text
+IYZITRACE_INGEST_URL=https://<route-host>/ingest
+IYZITRACE_API_KEY=<agent-key>
+IYZITRACE_HOST_NAME=<this machine's name>
+IYZITRACE_AGENT_GROUP=java-hosts
+```
 
-Keep `OTELCOL_OPTIONS="--config=/etc/otelcol-contrib/config.yaml"`. The file holds a key: mode
-0640, owner `root`, group `otelcol-contrib`.
+- `IYZITRACE_INGEST_URL`: the platform's host name followed by `/ingest`, with no slash at the end.
+- `IYZITRACE_API_KEY`: the department's **agent** key, not the reader key.
+- `IYZITRACE_HOST_NAME`: how the machine appears in Agent Manager; `hostname -s` prints a good
+  choice.
+- `IYZITRACE_AGENT_GROUP`: the group in Agent Manager; any name works.
 
-**5. Validate the config with those values.**
+Leave the `OTELCOL_OPTIONS=` line as it is.
+
+## 5. Check the configuration
+
+This loads the values you just wrote and checks the configuration without starting anything:
 
 ```bash
 ( set -a; . /etc/otelcol-contrib/otelcol-contrib.conf; set +a
   otelcol-contrib validate --config=/etc/otelcol-contrib/config.yaml ) && echo "config is valid"
 ```
 
-No output and `config is valid` means it is valid. An error names the line.
+You should see `config is valid`. Otherwise the error names the wrong line.
 
-**6. Start it, and start it at boot.**
+## 6. Start the collector
 
 ```bash
-systemctl daemon-reload
 systemctl enable otelcol-contrib
 systemctl restart otelcol-contrib
 systemctl status otelcol-contrib --no-pager
-curl -s http://127.0.0.1:13133/ ; echo          # {"status":"Server available", ...}
+curl -s http://127.0.0.1:13133/
 ```
 
-## 3.3 Check
+`systemctl status` shows `active (running)`. The `curl` answers with `"status":"Server available"`.
+
+If it is not running, the last 50 log lines tell why:
 
 ```bash
-systemctl status otelcol-contrib --no-pager
-curl -s http://127.0.0.1:13133/ ; echo        # {"status":"Server available", ...}
 journalctl -u otelcol-contrib -n 50 --no-pager
 ```
 
-A warning `failed to get host ID` is harmless (no `/etc/machine-id`).
+A warning `failed to get host ID` is harmless.
 
-In IyziTrace (Grafana):
+## 7. Check it in IyziTrace
 
-- **Agent Manager → Agents**: `otelcol-<hostname>` in group `java-hosts`, Online. Its drawer shows
-  Metrics and Logs within a minute.
-- **Atlas / Horizon**: the host with CPU and memory (from the host metrics) after a minute or two.
+In Grafana, IyziTrace:
 
-## 3.4 Options
+- **Agent Manager → Agents:** `otelcol-<machine name>` in group `java-hosts`, Online. Open it: the
+  Metrics and Logs tabs fill within a minute.
+- **Atlas** or **Horizon:** the machine, with its CPU and memory, after one or two minutes.
 
-| Need | Change |
-|---|---|
-| The gateway's certificate is from a private CA | copy the CA to `/etc/otelcol-contrib/iyzitrace-ca.pem`, uncomment the two `tls: ca_file:` blocks in `config.yaml`, re-run `install.sh` |
-| Outbound traffic through a proxy | `HTTPS_PROXY=` / `NO_PROXY=` in `otelcol-contrib.conf`, then `systemctl restart otelcol-contrib` |
-| App servers on other machines send to this collector | `endpoint: 0.0.0.0:4317` / `0.0.0.0:4318` in `config.yaml`, open the ports for those machines only, point their agents at `http://<this-host>:4318` |
-| Process metrics of the Java processes (CPU, memory per JVM) | run the collector as root: `systemctl edit otelcol-contrib` → `[Service]` `User=root`; as `otelcol-contrib` it can only read its own process |
-| One `service.name` per server instead of per application | remove `groupbyattrs/deployment` and `transform/deployment-as-service` from the `traces` and `logs` pipelines |
+Next: [04-java-agent.md](04-java-agent.md).
+
+## When the situation is different
+
+**The platform's certificate is signed by an internal CA.** Copy the CA certificate to
+`/etc/otelcol-contrib/iyzitrace-ca.pem`. In `config.yaml`, remove the `#` in front of the two
+`tls:` / `ca_file:` blocks. Then run `systemctl restart otelcol-contrib`.
+
+**Outbound traffic must go through a proxy.** Add these lines to `otelcol-contrib.conf`, then
+restart:
+
+```text
+HTTPS_PROXY=http://<proxy-host>:<port>
+NO_PROXY=localhost,127.0.0.1
+```
+
+**Java servers on other machines send to this collector.** In `config.yaml`, change
+`127.0.0.1:4317` and `127.0.0.1:4318` to `0.0.0.0:4317` and `0.0.0.0:4318`. Open these ports in the
+firewall only for those machines, and point their agents at `http://<this machine>:4318`.
+
+**You also want CPU and memory per Java process.** The collector can only read other users'
+processes as root. Run `systemctl edit otelcol-contrib`, add the two lines below, then restart:
+
+```text
+[Service]
+User=root
+```
+
+**You want one service per server, not one per application.** In `config.yaml`, remove
+`groupbyattrs/deployment` and `transform/deployment-as-service` from the `traces` and `logs`
+pipelines. See [04-java-agent.md](04-java-agent.md#service-names) for what that changes.

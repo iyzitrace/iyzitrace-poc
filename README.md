@@ -1,78 +1,72 @@
-# IyziTrace PoC kit
+# IyziTrace PoC
 
-Everything needed to run an IyziTrace proof of concept: platform installation, collectors on the
-customer's machines, application instrumentation, and step-by-step checks. Each part is a separate
-directory, so a PoC uses only the parts it needs and new ones can be added.
+How to set up an IyziTrace proof of concept, step by step: the platform, collectors on the
+customer's machines, and application instrumentation.
 
-| Part | Available now | Directory |
-|---|---|---|
-| **Platform** | Kubernetes 1.30+, including OpenShift 4.11+ | [platform/kubernetes/](platform/kubernetes/README.md) |
-| **Collectors** | Linux host (RHEL/Rocky/Alma, Debian/Ubuntu), systemd | [collectors/linux-host/](collectors/linux-host/) |
-| **Instrumentation** | Java: OpenTelemetry Java agent + iyzitrace appserver-deployment extension | [instrumentation/java/](instrumentation/java/) |
-| **Rehearsal** | a Linux host with Tomcat, run locally in Docker | [test/linux-java-host/](test/linux-java-host/README.md) |
+Today this covers the platform on Kubernetes or OpenShift, and Java servers on Linux machines.
+Other platforms and languages will be added the same way.
 
-## Typical layout: Java app servers on Linux, platform on Kubernetes/OpenShift
+## How the pieces fit
 
 ```text
- Linux host (each app server machine)                            Kubernetes / OpenShift
+ Linux machine (each one that runs a Java server)                 Kubernetes / OpenShift
 ┌──────────────────────────────────────────────┐               ┌──────────────────────────────┐
-│ Java app server (Tomcat, WildFly/JBoss, ...) │               │ IyziTrace platform           │
-│   + OpenTelemetry Java agent 2.21.0          │               │   Ingress / Route ──► nginx  │
-│   + appserver-deployment extension 0.1.0     │               │     ├─ ingest (OTLP)         │
-│        │ OTLP http://127.0.0.1:4318          │               │     ├─ OpAMP (Agent Manager) │
-│        ▼                                     │  HTTPS 443    │     └─ query (plugin)        │
-│ OpenTelemetry Collector contrib 0.159.0      │──────────────►│                              │
-│   traces, logs, JVM + host metrics, OpAMP    │  agent key    │                              │
+│ Java server (Tomcat, WildFly/JBoss, ...)     │               │ IyziTrace platform           │
+│   + OpenTelemetry Java agent                 │               │   behind one host name       │
+│   + iyzitrace appserver-deployment extension │               │   (Route or Ingress)         │
+│        │ sends to 127.0.0.1:4318             │               │                              │
+│        ▼                                     │  HTTPS 443    │                              │
+│ OpenTelemetry Collector                      │──────────────►│                              │
+│   adds the machine's metrics                 │  agent key    │                              │
 └──────────────────────────────────────────────┘               └──────────────▲───────────────┘
                                                                               │ reader key
-                                                     customer Grafana + IyziTrace plugin
+                                                     the customer's Grafana + IyziTrace plugin
 ```
 
-## Step by step
+## Steps
 
-| Step | What | Doc |
-|---|---|---|
-| 0 | Collect what the customer must provide; check access | [docs/00-prerequisites.md](docs/00-prerequisites.md) |
-| 1 | Install the platform | [docs/01-platform.md](docs/01-platform.md) |
-| 2 | Console (administrator, licence, department, keys) and the plugin in Grafana | [docs/02-console-and-plugin.md](docs/02-console-and-plugin.md) |
-| 3 | Collector on each Linux host | [docs/03-linux-collector.md](docs/03-linux-collector.md) |
-| 4 | Java agent and extension on each app server | [docs/04-java-agent.md](docs/04-java-agent.md) |
-| 5 | Check every layer | [docs/05-verify.md](docs/05-verify.md) |
-| — | When something does not work | [docs/06-troubleshooting.md](docs/06-troubleshooting.md) |
+1. [Before the PoC: what to ask for and check](docs/00-prerequisites.md)
+2. [Install the platform](docs/01-platform.md)
+3. [Console and plugin](docs/02-console-and-plugin.md): administrator, licence, department, keys,
+   and the plugin in Grafana
+4. [Collector on each Linux machine](docs/03-linux-collector.md)
+5. [Java agent on each Java server](docs/04-java-agent.md)
+6. [Check that everything works](docs/05-verify.md)
+7. [When something does not work](docs/06-troubleshooting.md)
 
-Scripts are a convenience, never the only way: every scripted step (`install.sh`, `download.sh`,
-`scc.sh`, `check-images.sh`) is also written out by hand in the doc, with the exact commands the
-script runs, under **B) By hand, step by step**.
+Every step is written as commands you can copy. The few files you need are in this repository and
+are downloaded in the steps:
+
+| File | What it is |
+|---|---|
+| [platform/kubernetes/values-poc.yaml](platform/kubernetes/values-poc.yaml) | the platform's settings for the PoC; you change two addresses |
+| [collectors/linux-host/config.yaml](collectors/linux-host/config.yaml) | the collector's configuration, the same on every machine |
+| [collectors/linux-host/otelcol-contrib.conf.example](collectors/linux-host/otelcol-contrib.conf.example) | the values that differ per machine: address, key, name |
+| [instrumentation/java/otel-agent.properties](instrumentation/java/otel-agent.properties) | the Java agent's settings |
 
 ## Versions
 
-| Component | Version | Source |
-|---|---|---|
-| IyziTrace platform images | `dev-c44dd8f` (amd64 + arm64) | `ghcr.io/iyzitrace/*`, public |
-| Patched Thanos | `v0.42.4-iyz.1` | `ghcr.io/iyzitrace/thanos` |
-| Platform charts | `iyzitrace-operators`/`iyzitrace-storage` `0.1.0-dev.c44dd8f`, `iyzitrace-platform` `1.3.1-dev.c44dd8f` | `oci://ghcr.io/iyzitrace/charts`, public |
-| OpenTelemetry Collector contrib | 0.159.0 | GitHub releases, SHA-256 checked by `install.sh` |
-| OpenTelemetry Java agent | 2.21.0 | GitHub releases, SHA-256 checked by `download.sh` |
-| appserver-deployment extension | 0.1.0 | [antreklabs/iyzitrace-otel-java-extensions](https://github.com/antreklabs/iyzitrace-otel-java-extensions) releases, SHA-256 checked |
-
-## Rehearsed
-
-On 2026-10-18: the platform on minikube (Kubernetes 1.30); the Linux host with `test/linux-java-host`
-(Rocky Linux 9, Java 17, Tomcat 10.1). Results:
-[platform/kubernetes/README.md](platform/kubernetes/README.md#rehearsal-results-minikube-kubernetes-130-2026-10-18-platform-dev-at-c44dd8f).
-
-| Java host check | Result |
+| What | Version |
 |---|---|
-| `install.sh`: download, SHA-256, RPM, environment file, validate | passed |
-| Collector in Agent Manager (group `java-hosts`), own metrics and logs | passed |
-| Agent 2.21.0 + extension in Tomcat 10.1, three applications | three services: `poc-shop/examples`, `poc-shop/docs`, `poc-shop/ROOT` |
-| JVM metrics, host metrics, logs | arrive |
+| Platform charts (`oci://ghcr.io/iyzitrace/charts`) | `iyzitrace-operators` and `iyzitrace-storage` `0.1.0-dev.c44dd8f`, `iyzitrace-platform` `1.3.1-dev.c44dd8f` |
+| Platform images (`ghcr.io/iyzitrace`) | `dev-c44dd8f`; Thanos `v0.42.4-iyz.1` |
+| OpenTelemetry Collector (contrib) | 0.159.0 |
+| OpenTelemetry Java agent | 2.21.0 |
+| iyzitrace appserver-deployment extension | 0.1.0 ([source](https://github.com/antreklabs/iyzitrace-otel-java-extensions)) |
 
-## Adding a part
+## What was tested
 
-- A new platform installation (Compose, a single VM, ...): `platform/<name>/README.md`, linked from
-  `docs/01-platform.md`.
-- A new collector type (Windows, Kubernetes DaemonSet, ...): `collectors/<name>/`.
-- A new language (.NET, Node.js, Python, ...): `instrumentation/<language>/`.
+On 2026-10-18:
 
-No keys, licences or customer data belong in this repository.
+- The platform on a local Kubernetes 1.30, installed from the published charts.
+- The automated end-to-end test, the plugin's setup wizard, and a 5-minute restart test.
+- A Rocky Linux 9 machine with Tomcat 10.1 going through steps 4 and 5 exactly as written. Its three
+  applications appeared in IyziTrace as three services, and the collector appeared in Agent Manager
+  with its metrics and logs.
+
+Details are at the end of the [platform guide](platform/kubernetes/README.md#what-was-tested-before-the-first-openshift-poc),
+and the Linux test is in [test/linux-java-host](test/linux-java-host/README.md).
+
+## Keep keys out of this repository
+
+Agent and reader keys and the licence file never belong here.

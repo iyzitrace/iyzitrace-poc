@@ -1,41 +1,44 @@
 # 2. Console and plugin
 
-## 2.1 Console: administrator, licence, department, keys
+## Console: administrator, licence, department, keys
 
-Open `https://$GATEWAY/console/`.
+Open `https://<route-host>/console/` in a browser.
 
-1. **Administrator.** On a fresh install the console asks for one. (If you ran the licensed end-to-end test (platform install, step 7),
-   log in with the `helm-e2e` user from the state file instead.)
-2. **Licence.** Install the licence file.
-3. **Department.** Create the customer's department, e.g. `poc`. A department is a tenant: its data
-   is visible only with its own keys.
-4. **Keys** for the department, two kinds:
+1. **Create the administrator.** A fresh install asks for one. If you ran the optional end-to-end
+   test, log in with the `helm-e2e` user and the password from `~/iyzitrace-poc-state.json`
+   instead.
+2. **Install the licence**: License page, upload the `.lic` file.
+3. **Create the customer's department** on the Tenants page, for example `poc`. A department's data
+   can only be read with that department's keys.
+4. **Create two keys for the department** on the API Keys page:
+   - an **agent** key, for the collectors on the Linux machines;
+   - a **reader** key, for the Grafana plugin.
 
-   | Key | Role | Used by |
-   |---|---|---|
-   | agent key | `agent` (ingest) | the collectors on the Linux hosts (step 3) |
-   | reader key | `reader` (query) | the Grafana plugin (step 2.2) |
+   Each key is shown only once. Copy it somewhere safe right away.
+5. **Turn on enforcement** on the API Keys page, under Access Control, for both "Agents (Ingest)"
+   and "External Consumers (Query)". From now on, data without a key is refused.
 
-   Copy both when they are shown; they are not shown again. Do not commit them anywhere.
-5. **API-key enforcement**: turn on ingest and query enforcement, so anonymous traffic is refused.
+## Plugin in the customer's Grafana
 
-## 2.2 Plugin in the customer Grafana
-
-1. Install the IyziTrace app plugin in Grafana and enable it (Administration → Plugins → IyziTrace).
-2. Open IyziTrace; the setup wizard starts.
-3. **Step 1, Platform & department:**
-   - Platform URL: `https://$GATEWAY`
+1. Install the IyziTrace plugin and enable it: Administration → Plugins → IyziTrace.
+2. Open IyziTrace. The setup wizard starts.
+3. **Step 1, Platform & department.**
+   - Platform URL: `https://<route-host>`
    - Reader key: the department's reader key
-   - **Verify**. It must show the department's name and a usable licence. **Continue**.
-4. **Step 2, Data sources:** **Configure data sources**. Four datasources are created (metrics, logs,
-   traces, platform API), all pointing at the gateway. **Continue**.
-5. **Step 3, Verification:** **Run checks**.
-   - "Platform services are running" and "The reader key is accepted" must pass.
-   - Before any collector sends, "No data has arrived yet" is expected: use **Skip**. The screens
-     fill in once data arrives.
+   - Press **Verify**. It shows the department's name and that the licence is valid. Press
+     **Continue**.
+4. **Step 2, Data sources.** Press **Configure data sources**. Four data sources are created
+   (metrics, logs, traces, platform API). Press **Continue**.
+5. **Step 3, Verification.** Press **Run checks**.
+   - "Platform services are running" and "The reader key is accepted" must be green.
+   - Until a collector sends data, it says "No data has arrived yet". That is expected: press
+     **Skip**. The screens fill in once data arrives.
 
-More departments later: IyziTrace → Departments → Add department, with that department's reader key.
+To add another department later: IyziTrace → Departments → Add department, with that department's
+reader key.
 
-Agent Manager and the AI settings need a **Grafana Admin**. The platform verifies it against
-`authService.grafanaUrl` (platform install, step 6); if that URL is wrong, Agent Manager answers
-`grafana_admin_required`.
+Agent Manager and the AI settings work only for a **Grafana administrator**. The platform checks
+that against the Grafana address in `values-poc.yaml`. If Agent Manager says
+`grafana_admin_required`, that address is wrong or the cluster cannot reach it.
+
+Next: [03-linux-collector.md](03-linux-collector.md).

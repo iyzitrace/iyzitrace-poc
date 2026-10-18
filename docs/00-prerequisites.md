@@ -1,54 +1,68 @@
-# 0. Prerequisites: what to get from the customer, and what to check
+# 0. Before the PoC: what to ask for and check
 
-## OpenShift
+## OpenShift or Kubernetes cluster
 
-| Item | Why | How to check |
-|---|---|---|
-| `oc` login with **cluster-admin** | the operators install CRDs; the SCC grant (step 1.2) | `oc auth can-i '*' '*' --all-namespaces` → `yes` |
-| OpenShift 4.11 or later | the `nonroot-v2` SCC exists from 4.11 | `oc get scc nonroot-v2` |
-| A **default StorageClass**, ~125Gi free | 17 PVCs (50Gi object store) | `oc get storageclass` (one marked `(default)`) |
-| Image pulls: ghcr.io, docker.io, quay.io | the platform's images | `platform/kubernetes/check-images.sh` from a machine with the cluster's egress, or by hand per line of `platform/kubernetes/images.txt`: `skopeo inspect --raw docker://<image>` (or `podman pull <image>`) must succeed. On OpenShift, from a node: `oc debug node/<node> -- chroot /host podman pull <image>`. Otherwise ask for a mirror |
-| The admin machine reaches `ghcr.io` | `helm` pulls the charts from `oci://ghcr.io/iyzitrace/charts` | `helm show chart oci://ghcr.io/iyzitrace/charts/iyzitrace-platform --version 1.3.1-dev.c44dd8f` |
-| A Route host name (default apps domain is fine) | the only entry point | `oc get ingresses.config cluster -o jsonpath='{.spec.domain}'` |
-| cert-manager installed, or allowed to install | operators' webhooks, internal TLS | `oc get pods -n cert-manager`, or OperatorHub "cert-manager Operator for Red Hat OpenShift" |
+- **cluster-admin access.** The operators install cluster-wide resources, and on OpenShift one
+  permission must be granted. Check: `oc auth can-i '*' '*' --all-namespaces` prints `yes`.
+- **OpenShift 4.11 or later** (or Kubernetes 1.30 or later). Check on OpenShift:
+  `oc get scc nonroot-v2` finds it.
+- **A default StorageClass with about 125 GiB free.** The platform asks for 17 disks; the object
+  store is 50 GiB of that. Check: `kubectl get storageclass` shows one marked `(default)`.
+- **About 4 CPU and 16 GiB memory free on the workers.**
+- **cert-manager**, or permission to install it. Check: `kubectl get pods -n cert-manager`.
+- **A host name for the platform.** On OpenShift the Route gets one from the cluster's apps
+  domain; you can also choose one.
 
-Sizing: the base profile (one of each component) asks for about 2 CPU and 3.5Gi memory in requests,
-up to ~14Gi in limits. Fine for a PoC on any worker node with 4 CPU / 16Gi free.
+### Images
 
-## Linux hosts (where the Java app servers run)
+The cluster must be able to pull these images, directly or from a mirror:
 
-| Item | Why |
+| Registry | Images |
 |---|---|
-| root/sudo on each host | installing the collector package and the systemd service |
-| OS: RHEL/Rocky/Alma 8–9 or Debian/Ubuntu; x86_64 or aarch64 | `collector/install.sh` handles RPM and DEB |
-| **Outbound HTTPS (443) from each host to the Route host** | the collector sends there; nothing listens on the hosts for IyziTrace |
-| Download access to github.com, or copy the files in | collector RPM/DEB, Java agent, extension. Without internet: run the downloads elsewhere and copy |
-| A proxy, if outbound traffic must use one | `HTTPS_PROXY` in the collector's environment file |
-| The Route's CA certificate, if it is not publicly trusted | `tls.ca_file` in the collector config |
+| ghcr.io | `iyzitrace/auth-service:dev-c44dd8f`, `iyzitrace/opamp:dev-c44dd8f`, `iyzitrace/inventory-service:dev-c44dd8f`, `iyzitrace/query-guard:dev-c44dd8f`, `iyzitrace/holmes:dev-c44dd8f`, `iyzitrace/thanos:v0.42.4-iyz.1`, `open-telemetry/opentelemetry-operator/opentelemetry-operator:0.144.0` |
+| docker.io | `grafana/loki:3.7.8`, `grafana/tempo:2.10.7`, `nginx:1.30.4-alpine`, `otel/opentelemetry-collector-contrib:0.159.0`, `chrislusf/seaweedfs:4.44`, `chrislusf/seaweedfs-operator:1.0.39`, `curlimages/curl:8.8.0` |
+| quay.io | `prometheus/alertmanager:v0.34.0`, `prometheus-operator/prometheus-config-reloader:v0.93.1`, and the cert-manager images if you install it from its manifest |
 
-## Java app servers
+To check one image from a cluster node on OpenShift:
 
-| Item | Why |
-|---|---|
-| Java 11 or later on each app server | the extension's minimum (agent 2.x needs Java 8+) |
-| Which server and version (Tomcat, WildFly/JBoss EAP, WebLogic, WebSphere, Spring Boot) | where the JVM options go: [java/appservers/README.md](../java/appservers/README.md) |
-| How the server is started (systemd unit, script, admin console) | same |
-| A **restart window** for each server | the agent is loaded at JVM start |
-| Which applications run where; names the customer uses for them | `service.namespace` per server, optional declared names per app |
+```bash
+oc debug node/<node-name> -- chroot /host podman pull ghcr.io/iyzitrace/opamp:dev-c44dd8f
+```
 
-## IyziTrace side
+Docker Hub limits anonymous pulls. On a busy shared cluster, ask whether a pull secret or a mirror
+exists.
 
-| Item | Why |
-|---|---|
-| The licence file | console setup |
-| The customer Grafana URL (as the cluster's pods reach it) and a Grafana Admin | the plugin and Agent Manager |
-| The IyziTrace plugin build for that Grafana | installed in step 2 |
+## Linux machines where the Java servers run
 
-## Network summary
+- **root or sudo** on each machine.
+- **The operating system:** RHEL, Rocky or Alma 8 or 9, or Debian or Ubuntu; x86_64 or arm64.
+- **Outbound HTTPS (port 443) from each machine to the platform's host name.** Nothing listens on
+  the machines for IyziTrace.
+- **Downloads from github.com**, or a way to copy files to the machines: the collector package,
+  the Java agent and the extension.
+- **The proxy address**, if outbound traffic must go through one.
+- **The CA certificate of the platform's host name**, if it is signed by an internal CA.
 
-| From | To | Port | What |
+## Java servers
+
+- **Java 11 or later.**
+- **Which server and version:** Tomcat, WildFly / JBoss EAP, WebLogic, WebSphere, Spring Boot. And
+  how it is started (systemd, a script, the admin console). This decides where the agent settings
+  go.
+- **A restart window for each server.** The agent loads when the JVM starts.
+- **Which applications run on which server, and what the customer calls them.**
+
+## IyziTrace
+
+- The **licence file**.
+- The customer's **Grafana address** (as the cluster can reach it) and a **Grafana administrator**.
+- The **IyziTrace plugin** build for that Grafana version.
+
+## Network, in one table
+
+| From | To | Port | What for |
 |---|---|---|---|
-| Linux hosts (collector) | Route host | 443 | OTLP ingest, OpAMP, collector self-telemetry |
-| Customer Grafana (server side) | Route host | 443 | plugin datasources (queries, platform API) |
-| Platform pods | customer Grafana | 443/3000 | Grafana Admin verification (Agent Manager, AI settings) |
-| Java app server | collector on the same host | 4317/4318 on 127.0.0.1 | OTLP from the agent |
+| Collectors on the Linux machines | the platform's host name | 443 | sending data, Agent Manager |
+| The customer's Grafana server | the platform's host name | 443 | the plugin's queries |
+| The platform's pods | the customer's Grafana | 443 or 3000 | checking Grafana administrators |
+| The Java server | the collector on the same machine | 4318 on 127.0.0.1 | the agent's data |
