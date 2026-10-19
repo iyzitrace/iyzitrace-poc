@@ -1,0 +1,10 @@
+# On top of values.yaml, when the cluster reaches GitHub only through an HTTP proxy.
+# Replace PROXY-HOST:PORT. Grafana downloads the plugins through it.
+#
+# NO_PROXY lists what Grafana must reach directly: the cluster's own services, and, if the platform's
+# Route address is reached without the proxy, add its host name (for example
+# iyzitrace-iyzitrace.apps.cluster.example.com).
+env:
+  HTTPS_PROXY: http://PROXY-HOST:PORT
+  HTTP_PROXY: http://PROXY-HOST:PORT
+  NO_PROXY: localhost,127.0.0.1,.svc,.cluster.local

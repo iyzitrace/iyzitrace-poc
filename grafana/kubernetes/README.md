@@ -91,6 +91,15 @@ Next: the plugin's setup wizard, in [docs/02-console-and-plugin.md](../../docs/0
 Use the platform's **Route address** (`https://<route-host>`) as the Platform URL, not the
 in-cluster one: Grafana's server and your browser both use it.
 
+## If the cluster reaches GitHub through a proxy
+
+Grafana downloads the plugins from GitHub when it starts. Behind a proxy, put the proxy's address in
+[values-proxy.yaml](values-proxy.yaml) (replace `PROXY-HOST:PORT`) and run the command of step 2 again
+with `-f values-proxy.yaml` added after the other `-f` files. The proxy and the firewall must allow
+HTTPS to these hosts: `github.com`, and `release-assets.githubusercontent.com` and
+`objects.githubusercontent.com`, because GitHub sends release downloads there. If the platform's Route
+is reached without the proxy, add its host name to `NO_PROXY` in that file.
+
 ## If the platform's Route uses a certificate Grafana does not trust
 
 The plugin's queries go from Grafana's pod to the platform's Route. If the Route's certificate was
@@ -119,7 +128,7 @@ of this.
 | The pod is `ImagePullBackOff` | the cluster cannot reach Docker Hub (`grafana/grafana:13.1.1`), or its rate limit was hit: [docs/00-prerequisites.md](../../docs/00-prerequisites.md#images) |
 | The pod restarted once (`RESTARTS 1`) and its first log has `failed to download plugin yesoreyeram-infinity-datasource` | expected when grafana.com is unreachable: installing the IyziTrace plugin makes Grafana look for its dependency, Infinity, on grafana.com, which fails once; Infinity is already installed from GitHub and the second start works |
 | The log has `Failed to install plugin` for `grafana-lokiexplore-app`, `grafana-pyroscope-app`, `grafana-exploretraces-app` and others | harmless: Grafana tries to download its own default apps from grafana.com; nothing here uses them |
-| IyziTrace is not in the plugin list | the pod could not download it: `kubectl -n iyzitrace-grafana logs deploy/grafana` and look for `antreklabs-iyzitrace-app`. It needs outbound HTTPS to github.com |
+| IyziTrace is not in the plugin list | the pod could not download it: `kubectl -n iyzitrace-grafana logs deploy/grafana` and look for `antreklabs-iyzitrace-app`. It needs outbound HTTPS to github.com, and to the hosts GitHub redirects downloads to: see the proxy section above |
 | The pod is not created; events say `unable to validate against any security context constraint` | OpenShift: `-f values-openshift.yaml` is missing in step 2 |
 | The wizard or a data source test says `x509: certificate signed by unknown authority` | the section above |
 | Agent Manager says `grafana_admin_required` or answers 403 right after you reinstalled Grafana | the platform remembers the old Grafana's signing keys: `kubectl -n iyzitrace rollout restart sts/auth-service` |

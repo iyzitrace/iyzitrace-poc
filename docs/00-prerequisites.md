@@ -68,5 +68,5 @@ exists.
 | The platform's pods | the customer's Grafana | 443 or 3000 | checking Grafana administrators |
 | People's browsers | Grafana's host name | 443 | using IyziTrace |
 | Grafana's pod (the kit's Grafana) | the platform's host name | 443 | the plugin's queries |
-| Grafana's pod (the kit's Grafana) | github.com | 443 | downloading the plugins when it starts |
+| Grafana's pod (the kit's Grafana) | github.com, release-assets.githubusercontent.com, objects.githubusercontent.com | 443 | downloading the plugins when it starts (through a proxy if you have one) |
 | The Java server | the collector on the same machine | 4318 on 127.0.0.1 | the agent's data |
