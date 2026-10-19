@@ -105,12 +105,16 @@ logs. Without it they still appear in Agent Manager, but their Metrics and Logs 
 
 ```bash
 helm upgrade --install iyzitrace \
-  oci://ghcr.io/iyzitrace/charts/iyzitrace-platform --version 1.3.1-dev.c44dd8f \
+  oci://ghcr.io/iyzitrace/charts/iyzitrace-platform --version 1.3.1-dev.b4f7494 \
   -n iyzitrace -f values-poc.yaml --wait --timeout 20m
 kubectl -n iyzitrace get pods
 ```
 
 The install takes about 5 to 10 minutes. At the end, all 33 pods are `Running`.
+
+Optional: to speed up long metric queries, add `--set thanos.queryFrontend.enabled=true` to the
+command above (or `helm upgrade` later with the same flag). It adds a query-frontend that splits
+range queries by day and caches their results for 10 minutes. Leave it off if you are unsure.
 
 Check that the platform answers through the Route (replace `<route-host>`):
 
