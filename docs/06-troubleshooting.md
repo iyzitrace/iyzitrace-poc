@@ -18,7 +18,7 @@
 |---|---|
 | The wizard does not accept the key | you used the agent key, or a key of another department. Use the department's **reader** key |
 | The wizard says the licence is not usable | install the licence in the console first |
-| Agent Manager says `grafana_admin_required` | the Grafana address in `values-poc.yaml` is wrong or the cluster cannot reach it, or you are not a Grafana administrator |
+| Agent Manager says `grafana_admin_required` | the Grafana address in `values.yaml` is wrong or the cluster cannot reach it, or you are not a Grafana administrator |
 | A data source test or the wizard says `x509: certificate signed by unknown authority` | Grafana does not trust the platform's certificate (a Route signed by the cluster's own CA): [grafana/kubernetes/README.md](../grafana/kubernetes/README.md#if-the-platforms-route-uses-a-certificate-grafana-does-not-trust) |
 | The wizard passed but the screens are empty | no data has arrived yet, or the time range is too short. Go through [05-verify.md](05-verify.md) |
 
@@ -31,7 +31,7 @@
 | The log shows `401` or `Unauthorized` | wrong key: use the department's **agent** key |
 | The log shows `x509: certificate signed by unknown authority` | the platform's certificate is from an internal CA: see the end of [03-linux-collector.md](03-linux-collector.md) |
 | The log shows `connection refused` or timeouts | a firewall or proxy is in the way. Test from the machine: `curl -v https://<route-host>/healthz`. Set `HTTPS_PROXY` if needed |
-| The collector is in Agent Manager, but its Metrics and Logs tabs are empty | `lawrence.agentHttpEndpoint` in `values-poc.yaml` is not `https://<route-host>/ingest/opamp/v1/telemetry/`. Fix it and run the platform's `helm upgrade` again |
+| The collector is in Agent Manager, but its Metrics and Logs tabs are empty | `lawrence.agentHttpEndpoint` in `values.yaml` is not `https://<route-host>/ingest/opamp/v1/telemetry/`. Fix it and run the platform's `helm upgrade` again |
 | The collector is not in Agent Manager | the key belongs to another department, or traffic to the platform is blocked |
 | Warning `failed to get host ID` | harmless |
 

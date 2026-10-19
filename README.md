@@ -39,9 +39,8 @@ are downloaded in the steps:
 
 | File | What it is |
 |---|---|
-| [platform/kubernetes/values-poc.yaml](platform/kubernetes/values-poc.yaml) | the platform's settings for the PoC; you change two addresses |
-| [platform/kubernetes/values-proxy.yaml](platform/kubernetes/values-proxy.yaml) | the proxy settings for the two platform pods that reach the internet |
-| [registry/](registry/README.md) | values files that put your own registry in front of every image |
+| [platform/kubernetes/values.yaml](platform/kubernetes/values.yaml) | the one settings file for the operators, the object store and the platform; you change two addresses, and places marked `EDIT` cover a proxy or your own registry |
+| [platform/kubernetes/values-cert-manager.yaml](platform/kubernetes/values-cert-manager.yaml) | the settings for cert-manager (its chart accepts only its own keys) |
 | [grafana/kubernetes/values.yaml](grafana/kubernetes/values.yaml) | settings for the Grafana Helm chart (with the IyziTrace plugin), when the customer has none; the places that depend on the cluster (OpenShift, registry, proxy, CA) are marked `EDIT` |
 | [collectors/linux-host/config.yaml](collectors/linux-host/config.yaml) | the collector's configuration, the same on every machine |
 | [collectors/linux-host/otelcol-contrib.conf.example](collectors/linux-host/otelcol-contrib.conf.example) | the values that differ per machine: address, key, name |
@@ -69,7 +68,7 @@ On 2026-10-18:
   with its metrics and logs.
 
 On 2026-10-19, the published charts above with cert-manager installed through Helm and
-`values-poc.yaml`: every container of cert-manager, the operators and the platform (45 + 3 + 3) has CPU
+`values.yaml`: every container of cert-manager, the operators and the platform (45 + 3 + 3) has CPU
 and memory requests and limits, 33 of 33 platform pods run, the automated test passes, and no pod was
 restarted or killed for memory.
 

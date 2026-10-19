@@ -1,5 +1,0 @@
-# Storage chart: the SeaweedFS image from the organisation's own registry.
-# Replace REGISTRY with your registry's address. Use it as -f on the storage install.
-
-seaweedfs:
-  image: REGISTRY/docker.io/chrislusf/seaweedfs:4.44
