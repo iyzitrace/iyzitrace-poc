@@ -48,7 +48,7 @@ are downloaded in the steps:
 
 | What | Version |
 |---|---|
-| Platform charts (`oci://ghcr.io/iyzitrace/charts`) | `iyzitrace-operators` and `iyzitrace-storage` `0.1.0-dev.c44dd8f`, `iyzitrace-platform` `1.3.1-dev.c44dd8f` |
+| Platform charts (`oci://ghcr.io/iyzitrace/charts`) | `iyzitrace-operators` and `iyzitrace-storage` `0.1.0-dev.c44dd8f`, `iyzitrace-platform` `1.3.1-dev.b4f7494` |
 | Platform images (`ghcr.io/iyzitrace`) | `dev-c44dd8f`; Thanos `v0.42.4-iyz.1` |
 | OpenTelemetry Collector (contrib) | 0.159.0 |
 | OpenTelemetry Java agent | 2.21.0 |
