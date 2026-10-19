@@ -42,7 +42,7 @@ are downloaded in the steps:
 | [platform/kubernetes/values-poc.yaml](platform/kubernetes/values-poc.yaml) | the platform's settings for the PoC; you change two addresses |
 | [platform/kubernetes/values-proxy.yaml](platform/kubernetes/values-proxy.yaml) | the proxy settings for the two platform pods that reach the internet |
 | [registry/](registry/README.md) | values files that put your own registry in front of every image |
-| [grafana/kubernetes/values.yaml](grafana/kubernetes/values.yaml) | settings for the Grafana Helm chart (with the IyziTrace plugin), when the customer has none; `values-openshift.yaml` and `values-ca.yaml` add OpenShift and CA settings |
+| [grafana/kubernetes/values.yaml](grafana/kubernetes/values.yaml) | settings for the Grafana Helm chart (with the IyziTrace plugin), when the customer has none; the places that depend on the cluster (OpenShift, registry, proxy, CA) are marked `EDIT` |
 | [collectors/linux-host/config.yaml](collectors/linux-host/config.yaml) | the collector's configuration, the same on every machine |
 | [collectors/linux-host/otelcol-contrib.conf.example](collectors/linux-host/otelcol-contrib.conf.example) | the values that differ per machine: address, key, name |
 | [instrumentation/java/otel-agent.properties](instrumentation/java/otel-agent.properties) | the Java agent's settings |
