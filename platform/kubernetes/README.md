@@ -97,7 +97,7 @@ Open `values-poc.yaml` and set two values:
 
 | Key | Set it to |
 |---|---|
-| `authService.grafanaUrl` | the customer's Grafana, as the cluster can reach it, e.g. `https://grafana.customer.local` |
+| `authService.grafanaUrl` | the customer's Grafana, as the cluster can reach it, e.g. `https://grafana.customer.local`; for the kit's Grafana: `http://grafana.iyzitrace-grafana.svc:3000` ([grafana/kubernetes](../../grafana/kubernetes/README.md)) |
 | `lawrence.agentHttpEndpoint` | `https://<route-host>/ingest/opamp/v1/telemetry/` (keep the slash at the end) |
 
 The second value tells the collectors on the Linux machines where to send their own metrics and

@@ -1,0 +1,9 @@
+# On top of values.yaml, when the platform's Route uses a certificate Grafana does not trust.
+# Makes Grafana trust the certificate authority in the ConfigMap platform-ca. See README.md.
+extraConfigmapMounts:
+  - name: platform-ca
+    mountPath: /etc/platform-ca
+    configMap: platform-ca
+    readOnly: true
+env:
+  SSL_CERT_DIR: /etc/platform-ca

@@ -18,7 +18,10 @@ Open `https://<route-host>/console/` in a browser.
 5. **Turn on enforcement** on the API Keys page, under Access Control, for both "Agents (Ingest)"
    and "External Consumers (Query)". From now on, data without a key is refused.
 
-## Plugin in the customer's Grafana
+## Plugin in Grafana
+
+If you installed the kit's Grafana ([grafana/kubernetes](../grafana/kubernetes/README.md)), the plugin
+is already there and enabled: log in as `admin` and go to step 2. In the customer's own Grafana:
 
 1. Install the IyziTrace plugin and enable it: Administration → Plugins → IyziTrace.
 2. Open IyziTrace. The setup wizard starts.

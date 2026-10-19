@@ -26,7 +26,7 @@ Other platforms and languages will be added the same way.
 ## Steps
 
 1. [Before the PoC: what to ask for and check](docs/00-prerequisites.md)
-2. [Install the platform](docs/01-platform.md)
+2. [Install the platform](docs/01-platform.md), and Grafana with the plugin if the customer has none
 3. [Console and plugin](docs/02-console-and-plugin.md): administrator, licence, department, keys,
    and the plugin in Grafana
 4. [Collector on each Linux machine](docs/03-linux-collector.md)
@@ -40,6 +40,7 @@ are downloaded in the steps:
 | File | What it is |
 |---|---|
 | [platform/kubernetes/values-poc.yaml](platform/kubernetes/values-poc.yaml) | the platform's settings for the PoC; you change two addresses |
+| [grafana/kubernetes/values.yaml](grafana/kubernetes/values.yaml) | settings for the Grafana Helm chart (with the IyziTrace plugin), when the customer has none; `values-openshift.yaml` and `values-ca.yaml` add OpenShift and CA settings |
 | [collectors/linux-host/config.yaml](collectors/linux-host/config.yaml) | the collector's configuration, the same on every machine |
 | [collectors/linux-host/otelcol-contrib.conf.example](collectors/linux-host/otelcol-contrib.conf.example) | the values that differ per machine: address, key, name |
 | [instrumentation/java/otel-agent.properties](instrumentation/java/otel-agent.properties) | the Java agent's settings |
@@ -51,6 +52,7 @@ are downloaded in the steps:
 | Platform charts (`oci://ghcr.io/iyzitrace/charts`) | `iyzitrace-operators` and `iyzitrace-storage` `0.1.0-dev.c44dd8f`, `iyzitrace-platform` `1.3.1-dev.b4f7494` |
 | Platform images (`ghcr.io/iyzitrace`) | `dev-c44dd8f`; Thanos `v0.42.4-iyz.1` |
 | OpenTelemetry Collector (contrib) | 0.159.0 |
+| Grafana (kit): chart `grafana-community/grafana` | `14.0.1`, Grafana 13.1.1; IyziTrace plugin 1.3.1 from the `dev` branch at `de49fe9f` (release `grafana-plugin-dev.de49fe9`), Infinity 4.1.1, Plotly panel 0.5.0 |
 | OpenTelemetry Java agent | 2.21.0 |
 | iyzitrace appserver-deployment extension | 0.1.0 ([source](https://github.com/antreklabs/iyzitrace-otel-java-extensions)) |
 
