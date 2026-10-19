@@ -24,6 +24,7 @@ resources:
     cpu: 100m
     memory: 256Mi
   limits:
+    cpu: 250m
     memory: 1Gi
 
 # Installed when the pod starts, all three from GitHub releases (nothing is fetched from grafana.com).
