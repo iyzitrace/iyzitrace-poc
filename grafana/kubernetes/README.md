@@ -40,6 +40,14 @@ helm upgrade --install grafana \
 **OpenShift:** add `-f values-openshift.yaml` after `-f values.yaml`. OpenShift starts pods with a
 random user id, but the chart sets a fixed one (472); that file removes it.
 
+**Your own registry:** the command above pulls `grafana/grafana` (and, on plain Kubernetes, `busybox`)
+from Docker Hub. To pull them from your registry, replace `REGISTRY` in
+[../../registry/values-grafana.yaml](../../registry/values-grafana.yaml) and add
+`-f ../../registry/values-grafana.yaml` after the other `-f` files; see
+[registry/README.md](../../registry/README.md). The chart itself comes from `ghcr.io`: mirror it, or
+download it once with `helm pull` and install from the file. The plugins come from GitHub, not
+from a registry.
+
 ```bash
 kubectl -n iyzitrace-grafana get pods
 ```
@@ -125,7 +133,7 @@ of this.
 
 | What you see | What to do |
 |---|---|
-| The pod is `ImagePullBackOff` | the cluster cannot reach Docker Hub (`grafana/grafana:13.1.1`), or its rate limit was hit: [docs/00-prerequisites.md](../../docs/00-prerequisites.md#images) |
+| The pod is `ImagePullBackOff` | the cluster cannot reach Docker Hub (`grafana/grafana:13.1.1`), or its rate limit was hit; or your registry does not have the image under the address `registry/values-grafana.yaml` builds: [docs/00-prerequisites.md](../../docs/00-prerequisites.md#images) |
 | The pod restarted once (`RESTARTS 1`) and its first log has `failed to download plugin yesoreyeram-infinity-datasource` | expected when grafana.com is unreachable: installing the IyziTrace plugin makes Grafana look for its dependency, Infinity, on grafana.com, which fails once; Infinity is already installed from GitHub and the second start works |
 | The log has `Failed to install plugin` for `grafana-lokiexplore-app`, `grafana-pyroscope-app`, `grafana-exploretraces-app` and others | harmless: Grafana tries to download its own default apps from grafana.com; nothing here uses them |
 | IyziTrace is not in the plugin list | the pod could not download it: `kubectl -n iyzitrace-grafana logs deploy/grafana` and look for `antreklabs-iyzitrace-app`. It needs outbound HTTPS to github.com, and to the hosts GitHub redirects downloads to: see the proxy section above |
