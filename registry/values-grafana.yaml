@@ -1,0 +1,14 @@
+# Grafana chart (grafana/kubernetes): its images from the organisation's own registry.
+# Replace REGISTRY with your registry's address (every occurrence). Use it as one more -f on
+# the Grafana install. The plugins are downloaded from GitHub, not from a registry.
+
+image:
+  registry: REGISTRY/docker.io
+  repository: grafana/grafana
+
+# Only used on plain Kubernetes (values-openshift.yaml turns it off): the init container that
+# fixes the volume's owner.
+initChownData:
+  image:
+    registry: REGISTRY/docker.io
+    repository: library/busybox

@@ -22,6 +22,13 @@ kubectl -n cert-manager rollout status deploy/cert-manager-webhook
 
 You should see `deployment "cert-manager-webhook" successfully rolled out`.
 
+The manifest sets no CPU or memory requests and limits on its pods, and a cluster with quotas
+(OpenShift, for example) refuses pods without them. Set them:
+
+```bash
+kubectl -n cert-manager set resources deployment --all --requests=cpu=10m,memory=32Mi --limits=cpu=250m,memory=256Mi
+```
+
 On OpenShift you can install the "cert-manager Operator for Red Hat OpenShift" from OperatorHub
 instead.
 
@@ -111,6 +118,21 @@ kubectl -n iyzitrace get pods
 ```
 
 The install takes about 5 to 10 minutes. At the end, all 33 pods are `Running`.
+
+**CPU and memory.** `values-poc.yaml` gives every container of the platform small requests
+and limits (together about 0.7 CPU and 2.3 GiB requested). If a pod restarts with
+`OOMKilled` (`kubectl -n iyzitrace get pods`, then `kubectl -n iyzitrace describe pod <pod>`),
+raise that component's memory limit in `values-poc.yaml`; if a component is slow and
+`kubectl -n iyzitrace top pods` shows its CPU at the limit, raise its CPU limit.
+
+**A private registry.** If the cluster may pull images only from your own registry, see
+[registry/README.md](../../registry/README.md): one extra values file per chart.
+
+**A proxy.** Two pods reach the internet: auth-service (it asks GitHub for the newest plugin
+version) and ai-gateway (it calls the AI provider). If that goes through a proxy, add
+[values-proxy.yaml](values-proxy.yaml), with the proxy's address filled in, as one more `-f` after
+`values-poc.yaml`. Without a proxy this is not needed; the platform works, only the update check
+and the AI features need the outside.
 
 Optional: to speed up long metric queries, add `--set thanos.queryFrontend.enabled=true` to the
 command above (or `helm upgrade` later with the same flag). It adds a query-frontend that splits

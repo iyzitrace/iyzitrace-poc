@@ -40,6 +40,8 @@ are downloaded in the steps:
 | File | What it is |
 |---|---|
 | [platform/kubernetes/values-poc.yaml](platform/kubernetes/values-poc.yaml) | the platform's settings for the PoC; you change two addresses |
+| [platform/kubernetes/values-proxy.yaml](platform/kubernetes/values-proxy.yaml) | the proxy settings for the two platform pods that reach the internet |
+| [registry/](registry/README.md) | values files that put your own registry in front of every image |
 | [grafana/kubernetes/values.yaml](grafana/kubernetes/values.yaml) | settings for the Grafana Helm chart (with the IyziTrace plugin), when the customer has none; `values-openshift.yaml` and `values-ca.yaml` add OpenShift and CA settings |
 | [collectors/linux-host/config.yaml](collectors/linux-host/config.yaml) | the collector's configuration, the same on every machine |
 | [collectors/linux-host/otelcol-contrib.conf.example](collectors/linux-host/otelcol-contrib.conf.example) | the values that differ per machine: address, key, name |

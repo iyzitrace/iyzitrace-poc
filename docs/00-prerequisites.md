@@ -8,7 +8,9 @@
   `oc get scc nonroot-v2` finds it.
 - **A default StorageClass with about 125 GiB free.** The platform asks for 17 disks; the object
   store is 50 GiB of that. Check: `kubectl get storageclass` shows one marked `(default)`.
-- **About 4 CPU and 16 GiB memory free on the workers.**
+- **About 4 CPU and 16 GiB memory free on the workers.** The pods request about 1 CPU and
+  2.5 GiB together (platform, object store, operators, cert-manager); their limits add up to about
+  11 CPU and 14 GiB, so the nodes need room for the pods to use more than they request.
 - **cert-manager**, or permission to install it. Check: `kubectl get pods -n cert-manager`.
 - **A host name for the platform.** On OpenShift the Route gets one from the cluster's apps
   domain; you can also choose one.
@@ -22,6 +24,9 @@ The cluster must be able to pull these images, directly or from a mirror:
 | ghcr.io | `iyzitrace/auth-service:dev-c44dd8f`, `iyzitrace/opamp:dev-c44dd8f`, `iyzitrace/inventory-service:dev-c44dd8f`, `iyzitrace/query-guard:dev-c44dd8f`, `iyzitrace/holmes:dev-c44dd8f`, `iyzitrace/thanos:v0.42.4-iyz.1`, `open-telemetry/opentelemetry-operator/opentelemetry-operator:0.144.0` |
 | docker.io | `grafana/loki:3.7.8`, `grafana/tempo:2.10.7`, `nginx:1.30.4-alpine`, `otel/opentelemetry-collector-contrib:0.159.0`, `chrislusf/seaweedfs:4.44`, `chrislusf/seaweedfs-operator:1.0.39`, `curlimages/curl:8.8.0`, and `grafana/grafana:13.1.1` if you install the kit's Grafana |
 | quay.io | `prometheus/alertmanager:v0.34.0`, `prometheus-operator/prometheus-config-reloader:v0.93.1`, and the cert-manager images if you install it from its manifest |
+
+If the cluster may pull only from your own registry, mirror these images under their original
+addresses and use [registry/README.md](../registry/README.md).
 
 To check one image from a cluster node on OpenShift:
 
@@ -67,6 +72,8 @@ exists.
 | The customer's Grafana server | the platform's host name | 443 | the plugin's queries |
 | The platform's pods | the customer's Grafana | 443 or 3000 | checking Grafana administrators |
 | People's browsers | Grafana's host name | 443 | using IyziTrace |
+| The platform's auth-service pod | api.github.com | 443 | the newest plugin version on the License page (optional; through a proxy if you have one) |
+| The platform's ai-gateway pod | the AI provider's address | 443 | the AI features (optional; through a proxy if you have one) |
 | Grafana's pod (the kit's Grafana) | the platform's host name | 443 | the plugin's queries |
 | Grafana's pod (the kit's Grafana) | github.com, release-assets.githubusercontent.com, objects.githubusercontent.com | 443 | downloading the plugins when it starts (through a proxy if you have one) |
 | The Java server | the collector on the same machine | 4318 on 127.0.0.1 | the agent's data |
