@@ -10,15 +10,15 @@ order. About 30 minutes, most of it waiting for pods.
 - OpenShift 4.11 or later and `oc` logged in as cluster-admin. Check: `oc auth can-i '*' '*' --all-namespaces` prints `yes`.
 - `helm` 3.14 or later, and `git`.
 - A default StorageClass with about 125 GiB free, and about 4 CPU and 16 GiB memory free on the workers.
-- **Your registry's address**, for example `registry.mkk.com.tr`, with the images below copied into it.
+- **Your registry's address**, with the images below copied into it.
   Each image goes in under its original address, with your registry in front:
-  `docker.io/grafana/loki:3.7.8` becomes `registry.mkk.com.tr/docker.io/grafana/loki:3.7.8`. Tags stay as they are.
-- **Your proxy's address**, for example `proxy.mkk.com.tr:3128`. It must let through HTTPS to
+  `docker.io/grafana/loki:3.7.8` becomes `PUT HERE/docker.io/grafana/loki:3.7.8` (PUT HERE = your registry). Tags stay as they are.
+- **Your proxy's address** (host and port). It must let through HTTPS to
   `github.com`, `release-assets.githubusercontent.com` and `objects.githubusercontent.com` (Grafana
   downloads its plugins from GitHub) and to the AI provider, if you use the AI features.
 - **The licence file** (`.lic`).
 - The machine you run the commands on reaches `ghcr.io` and `quay.io`: the Helm charts are downloaded
-  from there. Through a proxy, run `export HTTPS_PROXY=http://proxy.mkk.com.tr:3128` once in your
+  from there. Through a proxy, run `export HTTPS_PROXY=http://PUT HERE` (your proxy, as host:port) once in your
   terminal first (`helm` uses it).
 
 The images to copy (22 are needed; the last two are optional: `busybox` is only for `helm test` of the
@@ -61,12 +61,12 @@ git checkout mkk-poc
 
 ## 2. Enter your registry and your proxy
 
-Two commands. In each, replace the example (`registry.mkk.com.tr`, `proxy.mkk.com.tr:3128`) with your own
-address, and keep the rest as it is. They write your values into the three settings files.
+Two commands. In each, replace `PUT HERE` with your own address (the proxy as `host:port`), and keep the rest
+as it is. They write your values into the three settings files.
 
 ```bash
-sed -i 's#REGISTRY#registry.mkk.com.tr#g' platform/kubernetes/values.yaml platform/kubernetes/values-cert-manager.yaml grafana/kubernetes/values.yaml
-sed -i 's#PROXY-HOST:PORT#proxy.mkk.com.tr:3128#g' platform/kubernetes/values.yaml grafana/kubernetes/values.yaml
+sed -i 's#REGISTRY#PUT HERE#g' platform/kubernetes/values.yaml platform/kubernetes/values-cert-manager.yaml grafana/kubernetes/values.yaml
+sed -i 's#PROXY-HOST:PORT#PUT HERE#g' platform/kubernetes/values.yaml grafana/kubernetes/values.yaml
 ```
 
 On a Mac, write `sed -i ''` instead of `sed -i`. Check that nothing is left:
@@ -132,11 +132,10 @@ oc -n iyzitrace annotate route iyzitrace haproxy.router.openshift.io/timeout=5m
 oc -n iyzitrace get route iyzitrace -o jsonpath='{.spec.host}{"\n"}'
 ```
 
-The last command prints the host name, for example `iyzitrace-iyzitrace.apps.mkk.example.com`. Put it into the
-settings file, replacing the example with the host name you got:
+The last command prints the host name. Put it into the settings file, replacing `PUT HERE` with that host name:
 
 ```bash
-sed -i 's#ROUTE-HOST#iyzitrace-iyzitrace.apps.mkk.example.com#g' values.yaml
+sed -i 's#ROUTE-HOST#PUT HERE#g' values.yaml
 ```
 
 (Mac: `sed -i ''`.) The Route answers 503 until step 8 is done.
@@ -154,11 +153,11 @@ It takes 5 to 10 minutes. At the end, all 33 pods are `Running`.
 
 ## 9. Check the platform
 
-Replace the host name with yours:
+Replace `PUT-HERE` with the platform's host name (the one step 7 printed):
 
 ```bash
-curl -s https://iyzitrace-iyzitrace.apps.mkk.example.com/healthz
-curl -s -o /dev/null -w '%{http_code}\n' https://iyzitrace-iyzitrace.apps.mkk.example.com/console/
+curl -s https://PUT-HERE/healthz
+curl -s -o /dev/null -w '%{http_code}\n' https://PUT-HERE/console/
 ```
 
 You should see `ok`, then `200`. (Add `-k` if the Route's certificate is signed by the cluster's own CA.)
@@ -175,10 +174,10 @@ oc -n iyzitrace-grafana create route edge grafana --service=grafana --port=servi
 oc -n iyzitrace-grafana get route grafana -o jsonpath='{.spec.host}{"\n"}'
 ```
 
-Put the host name it prints into the settings file (replace the example), and install:
+Put the host name it prints into the settings file (replace `PUT HERE`), and install:
 
 ```bash
-sed -i 's#GRAFANA-HOST#grafana-iyzitrace-grafana.apps.mkk.example.com#g' values.yaml
+sed -i 's#GRAFANA-HOST#PUT HERE#g' values.yaml
 helm upgrade --install grafana \
   oci://ghcr.io/grafana-community/helm-charts/grafana --version 14.0.1 \
   -n iyzitrace-grafana -f values.yaml --wait --timeout 10m
