@@ -87,7 +87,7 @@ Administration → Plugins: **IyziTrace** is enabled, and **Infinity** and **Plo
 
 ## 5. Tell the platform where Grafana is
 
-The platform asks Grafana who its administrators are. In `values-poc.yaml` of the platform guide, set
+The platform asks Grafana who its administrators are. In `values.yaml` of the [platform guide](../../platform/kubernetes/README.md), set
 
 ```yaml
 authService:

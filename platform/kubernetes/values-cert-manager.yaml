@@ -2,25 +2,43 @@
 # resource definitions, and small CPU and memory requests and limits on every pod, as OpenShift
 # quotas require.
 
+## EDIT: registry. If the cluster may pull images only from your own registry, uncomment the lines marked
+## registry in this file (remove the # at the start of the line) and replace REGISTRY with your registry's
+## address, for example registry.example.com. Every image keeps its original address after it.
+
 crds:
   enabled: true
+# image:
+#   repository: REGISTRY/quay.io/jetstack/cert-manager-controller
 
 resources:
   requests: {cpu: 10m, memory: 32Mi}
   limits: {cpu: 250m, memory: 256Mi}
 
 webhook:
+  # image:
+  #   repository: REGISTRY/quay.io/jetstack/cert-manager-webhook
   resources:
     requests: {cpu: 10m, memory: 32Mi}
     limits: {cpu: 250m, memory: 128Mi}
 
 cainjector:
+  # image:
+  #   repository: REGISTRY/quay.io/jetstack/cert-manager-cainjector
   resources:
     requests: {cpu: 10m, memory: 32Mi}
     limits: {cpu: 250m, memory: 256Mi}
 
 # The Job that checks cert-manager is answering after the install.
 startupapicheck:
+  # image:
+  #   repository: REGISTRY/quay.io/jetstack/cert-manager-startupapicheck
   resources:
     requests: {cpu: 10m, memory: 16Mi}
     limits: {cpu: 100m, memory: 64Mi}
+
+## The pod cert-manager starts to answer an ACME challenge (the PoC does not use ACME, it uses
+## its own CA, but the controller names this image in its arguments).
+# acmesolver:
+#   image:
+#     repository: REGISTRY/quay.io/jetstack/cert-manager-acmesolver

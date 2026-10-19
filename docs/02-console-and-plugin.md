@@ -41,7 +41,7 @@ To add another department later: IyziTrace → Departments → Add department, w
 reader key.
 
 Agent Manager and the AI settings work only for a **Grafana administrator**. The platform checks
-that against the Grafana address in `values-poc.yaml`. If Agent Manager says
+that against the Grafana address in `values.yaml`. If Agent Manager says
 `grafana_admin_required`, that address is wrong or the cluster cannot reach it.
 
 Next: [03-linux-collector.md](03-linux-collector.md).

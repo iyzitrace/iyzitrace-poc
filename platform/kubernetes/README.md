@@ -7,8 +7,47 @@ extra, the step says so.
 You need `kubectl` (or `oc` on OpenShift) and `helm` 3.14 or later, logged in to the cluster as
 cluster-admin. The machine must reach `ghcr.io`: the charts are downloaded from there.
 
-You also need one file from this repository, [values-poc.yaml](values-poc.yaml). Download it or
-clone the repository; the commands below assume you are in the folder that contains it.
+You also need two files from this repository, in the folder the commands below run from:
+[values.yaml](values.yaml) and [values-cert-manager.yaml](values-cert-manager.yaml). Download them or
+clone the repository.
+
+## Before you start: the values files
+
+[values.yaml](values.yaml) is one file for steps 3, 4 and 6 (the operators, the object store and the
+platform): each chart reads only the keys it knows, so the same file is given to all three commands.
+[values-cert-manager.yaml](values-cert-manager.yaml) is for step 1 only: the cert-manager chart refuses
+keys it does not know.
+
+Most lines stay as they are. A few places depend on your cluster; they are marked `EDIT` in the files,
+with the lines to uncomment (remove the `#` at the start of the line; in an editor, select the block and
+toggle the comment). Do this **before** step 1:
+
+| If your cluster... | Do this |
+|---|---|
+| may pull images only from your own registry | in both files, uncomment every block marked `EDIT: registry` and replace `REGISTRY` with your registry's address (every occurrence), for example `registry.example.com` |
+| lets the pods that reach the internet (auth-service, ai-gateway) out only through an HTTP proxy | in `values.yaml`, uncomment the two blocks marked `EDIT: proxy` and replace `PROXY-HOST:PORT` |
+| has neither restriction | change nothing |
+
+**What a registry address looks like.** Mirror every image into your registry under its original
+address, with your registry in front of it; the tags stay as they are. The files already contain the
+resulting names:
+
+| Original | In your registry |
+|---|---|
+| `docker.io/grafana/loki:3.7.8` | `REGISTRY/docker.io/grafana/loki:3.7.8` |
+| `ghcr.io/iyzitrace/auth-service:<tag>` | `REGISTRY/ghcr.io/iyzitrace/auth-service:<tag>` |
+| `quay.io/prometheus/alertmanager:v0.34.0` | `REGISTRY/quay.io/prometheus/alertmanager:v0.34.0` |
+| `nginx:1.30.4-alpine` (a short name) | `REGISTRY/docker.io/library/nginx:1.30.4-alpine` |
+
+The full list of images is in [docs/00-prerequisites.md](../../docs/00-prerequisites.md#images). The
+charts themselves come from `ghcr.io`: mirror them too, or download them once with `helm pull` and
+install from the files. A registry that needs a login is not covered here; on OpenShift the
+cluster-wide pull secret (Administration → Cluster Settings → Configuration → global pull secret)
+usually has it already.
+
+**What the proxy is for.** auth-service asks GitHub for the newest plugin version (License page) and may
+call Jira; ai-gateway calls the AI provider. Without a proxy and without internet the platform works;
+only the update check and the AI features need the outside.
 
 ## 1. Install cert-manager
 
@@ -58,7 +97,7 @@ They install the OpenTelemetry and SeaweedFS operators. Once per cluster.
 ```bash
 helm upgrade --install iyzitrace-operators \
   oci://ghcr.io/iyzitrace/charts/iyzitrace-operators --version 0.1.0-dev.0d769a0 \
-  -n iyzitrace-system --wait --timeout 10m
+  -n iyzitrace-system -f values.yaml --wait --timeout 10m
 kubectl -n iyzitrace-system get pods
 ```
 
@@ -71,7 +110,7 @@ This is SeaweedFS with three buckets: one each for traces, logs and metrics.
 ```bash
 helm upgrade --install iyzitrace-storage \
   oci://ghcr.io/iyzitrace/charts/iyzitrace-storage --version 0.1.0-dev.0d769a0 \
-  -n iyzitrace --wait --timeout 10m
+  -n iyzitrace -f values.yaml --wait --timeout 10m
 kubectl -n iyzitrace wait bucket --all --for=jsonpath='{.status.phase}'=Ready --timeout=5m
 ```
 
@@ -96,12 +135,12 @@ To choose the name yourself, add `--hostname iyzitrace.apps.cluster.example.com`
 command. The timeout keeps long queries and agent connections open (the router's default is 30
 seconds). The Route answers 503 until step 6 is done.
 
-**Kubernetes with an Ingress controller:** choose the host name. In `values-poc.yaml`, set
+**Kubernetes with an Ingress controller:** choose the host name. In `values.yaml`, set
 `nginx.ingress.enabled: true`, `className` and `host`; the platform chart then creates the Ingress.
 
 ## 6. Install the platform
 
-Open `values-poc.yaml` and set two values:
+Open `values.yaml` and set two values:
 
 | Key | Set it to |
 |---|---|
@@ -114,26 +153,17 @@ logs. Without it they still appear in Agent Manager, but their Metrics and Logs 
 ```bash
 helm upgrade --install iyzitrace \
   oci://ghcr.io/iyzitrace/charts/iyzitrace-platform --version 1.3.1-dev.0d769a0 \
-  -n iyzitrace -f values-poc.yaml --wait --timeout 20m
+  -n iyzitrace -f values.yaml --wait --timeout 20m
 kubectl -n iyzitrace get pods
 ```
 
 The install takes about 5 to 10 minutes. At the end, all 33 pods are `Running`.
 
-**CPU and memory.** `values-poc.yaml` gives every container of the platform small requests
+**CPU and memory.** `values.yaml` gives every container of the platform small requests
 and limits (together about 0.7 CPU and 2.3 GiB requested). If a pod restarts with
 `OOMKilled` (`kubectl -n iyzitrace get pods`, then `kubectl -n iyzitrace describe pod <pod>`),
-raise that component's memory limit in `values-poc.yaml`; if a component is slow and
+raise that component's memory limit in `values.yaml`; if a component is slow and
 `kubectl -n iyzitrace top pods` shows its CPU at the limit, raise its CPU limit.
-
-**A private registry.** If the cluster may pull images only from your own registry, see
-[registry/README.md](../../registry/README.md): one extra values file per chart.
-
-**A proxy.** Two pods reach the internet: auth-service (it asks GitHub for the newest plugin
-version) and ai-gateway (it calls the AI provider). If that goes through a proxy, add
-[values-proxy.yaml](values-proxy.yaml), with the proxy's address filled in, as one more `-f` after
-`values-poc.yaml`. Without a proxy this is not needed; the platform works, only the update check
-and the AI features need the outside.
 
 Optional: to speed up long metric queries, add `--set thanos.queryFrontend.enabled=true` to the
 command above (or `helm upgrade` later with the same flag). It adds a query-frontend that splits

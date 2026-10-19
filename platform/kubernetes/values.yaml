@@ -1,0 +1,361 @@
+# Settings for the PoC: one file for the operators (step 3), the object store (step 4) and the platform
+# (step 6) of README.md. Each chart reads only the keys it knows and ignores the rest, so the same file is
+# given to all three `helm` commands. (cert-manager has its own file, values-cert-manager.yaml: its chart
+# refuses keys it does not know.)
+#
+# You must set two addresses, both below: authService.grafanaUrl (the customer's Grafana) and
+# lawrence.agentHttpEndpoint (the platform's public address).
+# A few more places depend on your cluster; they are marked EDIT, with the lines to uncomment (remove the
+# # at the start of the line; a whole block can be selected and toggled in an editor):
+#   EDIT: proxy      the pods that reach the internet (auth-service, ai-gateway) go through an HTTP proxy
+#   EDIT: registry   the cluster may pull images only from your own registry
+# Leave them as they are on a cluster with direct internet access and no registry restriction.
+
+authService:
+  # The customer's Grafana, as the cluster can reach it.
+  # The platform checks Grafana administrators against it (Agent Manager, AI settings).
+  grafanaUrl: https://grafana.customer.example
+  ## EDIT: proxy. Uncomment these lines if the pod must reach the internet through an HTTP proxy, and
+  ## replace PROXY-HOST:PORT. auth-service asks GitHub for the newest plugin version (License page) and may
+  ## call Jira. It is a Node.js program: it uses the proxy only when NODE_USE_ENV_PROXY is 1. NO_PROXY must
+  ## name every in-cluster address it calls: a short name such as `holmes` is not matched by `.svc`. If Jira
+  ## is reached without the proxy, add its host name to NO_PROXY.
+  # extraEnv:
+  #   - {name: NODE_USE_ENV_PROXY, value: "1"}
+  #   - {name: HTTPS_PROXY, value: "http://PROXY-HOST:PORT"}
+  #   - {name: HTTP_PROXY, value: "http://PROXY-HOST:PORT"}
+  #   - name: NO_PROXY
+  #     value: "localhost,127.0.0.1,.svc,.cluster.local,\
+  #       ai-gateway,holmes,inventory-service,lawrence,query-guard,alertmanager,\
+  #       thanos-query,thanos-internal-query,loki-query-frontend,tempo-query-frontend,seaweedfs-master,\
+  #       log-otel-enrichment-collector-extension,log-otel-enrichment-collector-monitoring,\
+  #       metric-otel-enrichment-collector-extension,metric-otel-enrichment-collector-monitoring,\
+  #       trace-otel-enrichment-collector-extension,trace-otel-enrichment-collector-monitoring"
+  resources:
+    requests: {cpu: 25m, memory: 64Mi}
+    limits: {cpu: 250m, memory: 512Mi}
+
+lawrence:
+  # Where collectors outside the cluster send their own metrics and logs:
+  # https://<route-host>/ingest/opamp/v1/telemetry/  (keep the slash at the end)
+  agentHttpEndpoint: https://ROUTE-HOST/ingest/opamp/v1/telemetry/
+  resources:
+    requests: {cpu: 10m, memory: 32Mi}
+    limits: {cpu: 100m, memory: 256Mi}
+
+# Only on Kubernetes with an Ingress controller. On OpenShift, keep enabled: false and use a Route.
+nginx:
+  ingress:
+    enabled: false
+    className: nginx
+    host: ROUTE-HOST
+    annotations: {}
+    tlsSecretName: ""
+  resources:
+    requests: {cpu: 10m, memory: 16Mi}
+    limits: {cpu: 250m, memory: 128Mi}
+
+# --- CPU and memory ------------------------------------------------------------------
+# Smaller than the chart's own values, which are small already: enough for a handful of
+# servers sending data. Every container must have requests and limits (OpenShift quotas
+# refuse pods without them). If a pod is restarted with `OOMKilled`
+# (kubectl -n iyzitrace get pods; kubectl -n iyzitrace describe pod <pod>), raise that
+# component's memory limit here; a component that is slow and shows CPU at its limit
+# (kubectl -n iyzitrace top pods) needs a higher CPU limit.
+
+queryGuard:
+  resources:
+    requests: {cpu: 10m, memory: 16Mi}
+    limits: {cpu: 250m, memory: 256Mi}
+inventoryService:
+  resources:
+    requests: {cpu: 25m, memory: 32Mi}
+    limits: {cpu: 250m, memory: 512Mi}
+holmes:
+  resources:
+    requests: {cpu: 50m, memory: 256Mi}
+    limits: {cpu: 500m, memory: 1Gi}
+aiGateway:
+  ## EDIT: proxy. Uncomment these lines if ai-gateway must reach the AI provider (OpenAI, Azure OpenAI,
+  ## Anthropic, ...) through an HTTP proxy, and replace PROXY-HOST:PORT. If the provider is on premises and
+  ## reached without the proxy, add its host name to NO_PROXY.
+  # extraEnv:
+  #   - {name: HTTPS_PROXY, value: "http://PROXY-HOST:PORT"}
+  #   - {name: HTTP_PROXY, value: "http://PROXY-HOST:PORT"}
+  #   - {name: NO_PROXY, value: "localhost,127.0.0.1,.svc,.cluster.local,auth-service"}
+  resources:
+    requests: {cpu: 10m, memory: 128Mi}
+    limits: {cpu: 250m, memory: 512Mi}
+collectors:
+  trace:
+    resources:
+      requests: {cpu: 25m, memory: 64Mi}
+      limits: {cpu: 500m, memory: 512Mi}
+  metric:
+    resources:
+      requests: {cpu: 25m, memory: 64Mi}
+      limits: {cpu: 500m, memory: 512Mi}
+  log:
+    resources:
+      requests: {cpu: 25m, memory: 64Mi}
+      limits: {cpu: 500m, memory: 512Mi}
+selfmon:
+  resources:
+    requests: {cpu: 10m, memory: 64Mi}
+    limits: {cpu: 100m, memory: 256Mi}
+
+## EDIT: registry, operators (step 3 of README.md). Uncomment the lines below and replace REGISTRY as above.
+
+# otelOperator:
+#   manager:
+#     image:
+#       repository: REGISTRY/ghcr.io/open-telemetry/opentelemetry-operator/opentelemetry-operator
+#     # The image a collector gets when its resource names none.
+#     collectorImage:
+#       repository: REGISTRY/docker.io/otel/opentelemetry-collector-contrib
+#   kubeRBACProxy:
+#     image:
+#       repository: REGISTRY/quay.io/brancz/kube-rbac-proxy
+#   # The pods `helm test` runs.
+#   testFramework:
+#     image:
+#       repository: REGISTRY/docker.io/library/busybox
+# seaweedfsOperator:
+#   image:
+#     registry: REGISTRY/docker.io/chrislusf
+
+## EDIT: registry, object store (step 4 of README.md). Uncomment the lines below and replace REGISTRY as above.
+
+# seaweedfs:
+#   image: REGISTRY/docker.io/chrislusf/seaweedfs:4.44
+
+## EDIT: registry. Uncomment the lines marked registry in this file and replace REGISTRY with your
+## registry's address, for example registry.example.com. Every image keeps its original address after
+## it: docker.io/grafana/loki becomes registry.example.com/docker.io/grafana/loki.
+
+# images:
+#   auth:
+#     repository: REGISTRY/ghcr.io/iyzitrace/auth-service
+#   lawrence:
+#     repository: REGISTRY/ghcr.io/iyzitrace/opamp
+#   inventory:
+#     repository: REGISTRY/ghcr.io/iyzitrace/inventory-service
+#   queryGuard:
+#     repository: REGISTRY/ghcr.io/iyzitrace/query-guard
+#   holmes:
+#     repository: REGISTRY/ghcr.io/iyzitrace/holmes
+#   nginx:
+#     repository: REGISTRY/docker.io/library/nginx
+#   otel:
+#     repository: REGISTRY/docker.io/otel/opentelemetry-collector-contrib
+#   curl:
+#     repository: REGISTRY/docker.io/curlimages/curl
+
+## EDIT: registry. The init containers that wait for their bucket run the curl image too. Their lists are
+## part of the chart's values and a list is replaced as a whole, so they are written out again here (from the
+## chart's own values.yaml) with the registry in front of the image; nothing else is changed in them.
+## Uncomment this block, and the `initContainers` / `extraInitContainers` lines further down.
+
+# x-wait-for-bucket:
+#   # Blocks a component that opens the object store until its own bucket answers
+#   # a signed HEAD with its own key, at $S3_ENDPOINT (helm/storage) — the Kubernetes counterpart of Compose's
+#   # `depends_on: seaweedfs-init: service_completed_successfully`. Unlike a Helm
+#   # hook it also gates every restart. 200 = bucket there and key valid, 404 =
+#   # bucket not yet created, 403 = wrong key.
+#   tempo: &waitTempo
+#     - name: wait-for-bucket
+#       image: REGISTRY/docker.io/curlimages/curl:8.8.0
+#       resources: &waitResources
+#         requests:
+#           cpu: 5m
+#           memory: 16Mi
+#         limits:
+#           cpu: 50m
+#           memory: 32Mi
+#       command:
+#         - "sh"
+#         - "-c"
+#       args:
+#         - >-
+#           until [ "$(curl -s -o /dev/null -w '%{http_code}' -I --aws-sigv4 'aws:amz:us-east-1:s3'
+#           --user "$TEMPO_ACCESS_KEY:$TEMPO_SECRET_KEY" "$S3_ENDPOINT/tempo-data")" = 200 ];
+#           do echo 'waiting for bucket tempo-data'; sleep 2; done
+#       envFrom:
+#         - secretRef:
+#             name: iyzitrace-tempo-s3
+#         # S3_ENDPOINT, derived from the Seaweed resource (helm/storage).
+#         - configMapRef:
+#             name: iyzitrace-object-store
+#       securityContext: &waitSecurity
+#         runAsNonRoot: true
+#         runAsUser: 100
+#         allowPrivilegeEscalation: false
+#         readOnlyRootFilesystem: true
+#         capabilities:
+#           drop:
+#             - "ALL"
+#   loki: &waitLoki
+#     - name: wait-for-bucket
+#       image: REGISTRY/docker.io/curlimages/curl:8.8.0
+#       resources: *waitResources
+#       command:
+#         - "sh"
+#         - "-c"
+#       args:
+#         - >-
+#           until [ "$(curl -s -o /dev/null -w '%{http_code}' -I --aws-sigv4 'aws:amz:us-east-1:s3'
+#           --user "$LOKI_ACCESS_KEY:$LOKI_SECRET_KEY" "$S3_ENDPOINT/loki-data")" = 200 ];
+#           do echo 'waiting for bucket loki-data'; sleep 2; done
+#       envFrom:
+#         - secretRef:
+#             name: iyzitrace-loki-s3
+#         # S3_ENDPOINT, derived from the Seaweed resource (helm/storage).
+#         - configMapRef:
+#             name: iyzitrace-object-store
+#       securityContext: *waitSecurity
+#   thanos: &waitThanos
+#     - name: wait-for-bucket
+#       image: REGISTRY/docker.io/curlimages/curl:8.8.0
+#       resources: *waitResources
+#       command:
+#         - "sh"
+#         - "-c"
+#       args:
+#         - >-
+#           until [ "$(curl -s -o /dev/null -w '%{http_code}' -I --aws-sigv4 'aws:amz:us-east-1:s3'
+#           --user "$AWS_ACCESS_KEY_ID:$AWS_SECRET_ACCESS_KEY" "$S3_ENDPOINT/thanos-time-series")" = 200 ];
+#           do echo 'waiting for bucket thanos-time-series'; sleep 2; done
+#       envFrom:
+#         - secretRef:
+#             name: iyzitrace-thanos-s3
+#         # S3_ENDPOINT, derived from the Seaweed resource (helm/storage).
+#         - configMapRef:
+#             name: iyzitrace-object-store
+#       securityContext: *waitSecurity
+#
+# # --- Object store: the iyzitrace-storage release -------------------------------
+# # The Seaweed resource of helm/storage, installed in this namespace first. The
+# # operator names its Services <name>-s3 and <name>-master, and every endpoint
+# # this chart hands out (Tempo, Loki, Thanos, auth-service) is derived from this
+# # name, so it must match that release's seaweedfs.name. The per-backend S3
+# # Secrets and the iyzitrace-object-store ConfigMap come from that release too.
+
+tempo:
+  # global:
+  #   image:
+  #     registry: REGISTRY/docker.io
+  ingester:
+    # initContainers: *waitTempo
+    resources:
+      requests: {cpu: 25m, memory: 64Mi}
+      limits: {cpu: 500m, memory: 512Mi}
+  metricsGenerator:
+    # initContainers: *waitTempo
+    resources:
+      requests: {cpu: 25m, memory: 64Mi}
+      limits: {cpu: 500m, memory: 512Mi}
+  distributor:
+    resources:
+      requests: {cpu: 10m, memory: 32Mi}
+      limits: {cpu: 250m, memory: 256Mi}
+  querier:
+    # initContainers: *waitTempo
+    resources:
+      requests: {cpu: 10m, memory: 32Mi}
+      limits: {cpu: 250m, memory: 256Mi}
+  queryFrontend:
+    resources:
+      requests: {cpu: 10m, memory: 32Mi}
+      limits: {cpu: 100m, memory: 128Mi}
+  compactor:
+    # initContainers: *waitTempo
+    resources:
+      requests: {cpu: 10m, memory: 32Mi}
+      limits: {cpu: 250m, memory: 256Mi}
+
+loki:
+  # global:
+  #   imageRegistry: REGISTRY/docker.io
+  ingester:
+    # initContainers: *waitLoki
+    resources:
+      requests: {cpu: 25m, memory: 64Mi}
+      limits: {cpu: 500m, memory: 512Mi}
+  compactor:
+    # initContainers: *waitLoki
+    resources:
+      requests: {cpu: 10m, memory: 32Mi}
+      limits: {cpu: 250m, memory: 256Mi}
+  distributor:
+    resources:
+      requests: {cpu: 10m, memory: 32Mi}
+      limits: {cpu: 250m, memory: 256Mi}
+  querier:
+    # initContainers: *waitLoki
+    resources:
+      requests: {cpu: 10m, memory: 32Mi}
+      limits: {cpu: 250m, memory: 256Mi}
+  queryFrontend:
+    resources:
+      requests: {cpu: 10m, memory: 32Mi}
+      limits: {cpu: 100m, memory: 128Mi}
+  queryScheduler:
+    resources:
+      requests: {cpu: 10m, memory: 32Mi}
+      limits: {cpu: 100m, memory: 128Mi}
+  indexGateway:
+    resources:
+      requests: {cpu: 10m, memory: 32Mi}
+      limits: {cpu: 250m, memory: 256Mi}
+
+thanos:
+  # global:
+  #   image: &thanosImage
+  #     registry: REGISTRY/ghcr.io
+  #     repository: iyzitrace/thanos
+  queryFrontend:
+    resources:
+      requests: {cpu: 10m, memory: 32Mi}
+      limits: {cpu: 100m, memory: 128Mi}
+  query:
+    resources:
+      requests: {cpu: 10m, memory: 32Mi}
+      limits: {cpu: 250m, memory: 256Mi}
+  receive:
+    # extraInitContainers: *waitThanos
+    resources:
+      requests: {cpu: 25m, memory: 64Mi}
+      limits: {cpu: 500m, memory: 512Mi}
+  storegateway:
+    # extraInitContainers: *waitThanos
+    resources:
+      requests: {cpu: 10m, memory: 32Mi}
+      limits: {cpu: 250m, memory: 256Mi}
+  compactor:
+    # extraInitContainers: *waitThanos
+    resources:
+      requests: {cpu: 25m, memory: 64Mi}
+      limits: {cpu: 500m, memory: 512Mi}
+  ruler:
+    # extraInitContainers: *waitThanos
+    resources:
+      requests: {cpu: 10m, memory: 32Mi}
+      limits: {cpu: 250m, memory: 256Mi}
+
+thanosInternal:
+  # global:
+  #   image: *thanosImage
+  query:
+    resources:
+      requests: {cpu: 10m, memory: 32Mi}
+      limits: {cpu: 250m, memory: 256Mi}
+
+alertmanager:
+  # image:
+  #   repository: REGISTRY/quay.io/prometheus/alertmanager
+  # configmapReload:
+  #   image:
+  #     repository: REGISTRY/quay.io/prometheus-operator/prometheus-config-reloader
+  resources:
+    requests: {cpu: 5m, memory: 16Mi}
+    limits: {cpu: 50m, memory: 64Mi}
