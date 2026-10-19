@@ -1,0 +1,9 @@
+# On top of values.yaml, on OpenShift. The chart sets fixed user and group ids (472); OpenShift
+# must pick them itself, so they are removed here. The volume-ownership init container needs
+# root and is off.
+securityContext:
+  runAsUser: null
+  runAsGroup: null
+  fsGroup: null
+initChownData:
+  enabled: false

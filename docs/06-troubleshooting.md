@@ -19,6 +19,7 @@
 | The wizard does not accept the key | you used the agent key, or a key of another department. Use the department's **reader** key |
 | The wizard says the licence is not usable | install the licence in the console first |
 | Agent Manager says `grafana_admin_required` | the Grafana address in `values-poc.yaml` is wrong or the cluster cannot reach it, or you are not a Grafana administrator |
+| A data source test or the wizard says `x509: certificate signed by unknown authority` | Grafana does not trust the platform's certificate (a Route signed by the cluster's own CA): [grafana/kubernetes/README.md](../grafana/kubernetes/README.md#if-the-platforms-route-uses-a-certificate-grafana-does-not-trust) |
 | The wizard passed but the screens are empty | no data has arrived yet, or the time range is too short. Go through [05-verify.md](05-verify.md) |
 
 ## Collector on a Linux machine

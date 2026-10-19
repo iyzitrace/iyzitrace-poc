@@ -20,7 +20,7 @@ The cluster must be able to pull these images, directly or from a mirror:
 | Registry | Images |
 |---|---|
 | ghcr.io | `iyzitrace/auth-service:dev-c44dd8f`, `iyzitrace/opamp:dev-c44dd8f`, `iyzitrace/inventory-service:dev-c44dd8f`, `iyzitrace/query-guard:dev-c44dd8f`, `iyzitrace/holmes:dev-c44dd8f`, `iyzitrace/thanos:v0.42.4-iyz.1`, `open-telemetry/opentelemetry-operator/opentelemetry-operator:0.144.0` |
-| docker.io | `grafana/loki:3.7.8`, `grafana/tempo:2.10.7`, `nginx:1.30.4-alpine`, `otel/opentelemetry-collector-contrib:0.159.0`, `chrislusf/seaweedfs:4.44`, `chrislusf/seaweedfs-operator:1.0.39`, `curlimages/curl:8.8.0` |
+| docker.io | `grafana/loki:3.7.8`, `grafana/tempo:2.10.7`, `nginx:1.30.4-alpine`, `otel/opentelemetry-collector-contrib:0.159.0`, `chrislusf/seaweedfs:4.44`, `chrislusf/seaweedfs-operator:1.0.39`, `curlimages/curl:8.8.0`, and `grafana/grafana:13.1.1` if you install the kit's Grafana |
 | quay.io | `prometheus/alertmanager:v0.34.0`, `prometheus-operator/prometheus-config-reloader:v0.93.1`, and the cert-manager images if you install it from its manifest |
 
 To check one image from a cluster node on OpenShift:
@@ -55,8 +55,9 @@ exists.
 ## IyziTrace
 
 - The **licence file**.
-- The customer's **Grafana address** (as the cluster can reach it) and a **Grafana administrator**.
-- The **IyziTrace plugin** build for that Grafana version.
+- A **Grafana 12.3 or later** with a **Grafana administrator**, and its address as the cluster can reach it.
+  Either the customer's Grafana, with the **IyziTrace plugin** build for its version, or the Grafana
+  this kit installs, which already has the plugin: [grafana/kubernetes](../grafana/kubernetes/README.md).
 
 ## Network, in one table
 
@@ -65,4 +66,7 @@ exists.
 | Collectors on the Linux machines | the platform's host name | 443 | sending data, Agent Manager |
 | The customer's Grafana server | the platform's host name | 443 | the plugin's queries |
 | The platform's pods | the customer's Grafana | 443 or 3000 | checking Grafana administrators |
+| People's browsers | Grafana's host name | 443 | using IyziTrace |
+| Grafana's pod (the kit's Grafana) | the platform's host name | 443 | the plugin's queries |
+| Grafana's pod (the kit's Grafana) | grafana.com and github.com | 443 | downloading the plugins when it starts |
 | The Java server | the collector on the same machine | 4318 on 127.0.0.1 | the agent's data |
