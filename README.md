@@ -40,6 +40,8 @@ are downloaded in the steps:
 | File | What it is |
 |---|---|
 | [platform/kubernetes/values-poc.yaml](platform/kubernetes/values-poc.yaml) | the platform's settings for the PoC; you change two addresses |
+| [platform/kubernetes/values-proxy.yaml](platform/kubernetes/values-proxy.yaml) | the proxy settings for the two platform pods that reach the internet |
+| [registry/](registry/README.md) | values files that put your own registry in front of every image |
 | [grafana/kubernetes/values.yaml](grafana/kubernetes/values.yaml) | settings for the Grafana Helm chart (with the IyziTrace plugin), when the customer has none; `values-openshift.yaml` and `values-ca.yaml` add OpenShift and CA settings |
 | [collectors/linux-host/config.yaml](collectors/linux-host/config.yaml) | the collector's configuration, the same on every machine |
 | [collectors/linux-host/otelcol-contrib.conf.example](collectors/linux-host/otelcol-contrib.conf.example) | the values that differ per machine: address, key, name |
@@ -49,7 +51,7 @@ are downloaded in the steps:
 
 | What | Version |
 |---|---|
-| Platform charts (`oci://ghcr.io/iyzitrace/charts`) | `iyzitrace-operators` and `iyzitrace-storage` `0.1.0-dev.c44dd8f`, `iyzitrace-platform` `1.3.1-dev.b4f7494` |
+| Platform charts (`oci://ghcr.io/iyzitrace/charts`) | `iyzitrace-operators` and `iyzitrace-storage` `0.1.0-dev.0d769a0`, `iyzitrace-platform` `1.3.1-dev.0d769a0` |
 | Platform images (`ghcr.io/iyzitrace`) | `dev-c44dd8f`; Thanos `v0.42.4-iyz.1` |
 | OpenTelemetry Collector (contrib) | 0.159.0 |
 | Grafana (kit): chart `grafana-community/grafana` | `14.0.1`, Grafana 13.1.1; IyziTrace plugin 1.3.1 from the `dev` branch at `de49fe9f` (release `grafana-plugin-dev.de49fe9`), Infinity 4.1.1, Plotly panel 0.5.0 |
@@ -65,6 +67,11 @@ On 2026-10-18:
 - A Rocky Linux 9 machine with Tomcat 10.1 going through steps 4 and 5 exactly as written. Its three
   applications appeared in IyziTrace as three services, and the collector appeared in Agent Manager
   with its metrics and logs.
+
+On 2026-10-19, the published charts above with cert-manager installed through Helm and
+`values-poc.yaml`: every container of cert-manager, the operators and the platform (45 + 3 + 3) has CPU
+and memory requests and limits, 33 of 33 platform pods run, the automated test passes, and no pod was
+restarted or killed for memory.
 
 Details are at the end of the [platform guide](platform/kubernetes/README.md#what-was-tested-before-the-first-openshift-poc),
 and the Linux test is in [test/linux-java-host](test/linux-java-host/README.md).

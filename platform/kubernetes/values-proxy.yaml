@@ -1,0 +1,32 @@
+# On top of values-poc.yaml, when the pods that must reach the internet go through an HTTP proxy.
+# Replace PROXY-HOST:PORT (three times).
+#
+# Who goes out:
+#   auth-service  checks GitHub for the newest plugin version (License page), and may call
+#                 Jira or other outside systems.
+#   ai-gateway    calls the AI provider (OpenAI, Azure OpenAI, Anthropic, ...).
+# Everything else talks inside the cluster only.
+#
+# auth-service is a Node.js program: it uses the proxy only when NODE_USE_ENV_PROXY is 1.
+# NO_PROXY must name every in-cluster address the pod calls. A short name such as `holmes`
+# is not matched by `.svc`, so each one is listed. If the AI provider or Jira is reached
+# without the proxy (on premises), add its host name to NO_PROXY.
+
+authService:
+  extraEnv:
+    - {name: NODE_USE_ENV_PROXY, value: "1"}
+    - {name: HTTPS_PROXY, value: "http://PROXY-HOST:PORT"}
+    - {name: HTTP_PROXY, value: "http://PROXY-HOST:PORT"}
+    - name: NO_PROXY
+      value: "localhost,127.0.0.1,.svc,.cluster.local,\
+        ai-gateway,holmes,inventory-service,lawrence,query-guard,alertmanager,\
+        thanos-query,thanos-internal-query,loki-query-frontend,tempo-query-frontend,seaweedfs-master,\
+        log-otel-enrichment-collector-extension,log-otel-enrichment-collector-monitoring,\
+        metric-otel-enrichment-collector-extension,metric-otel-enrichment-collector-monitoring,\
+        trace-otel-enrichment-collector-extension,trace-otel-enrichment-collector-monitoring"
+
+aiGateway:
+  extraEnv:
+    - {name: HTTPS_PROXY, value: "http://PROXY-HOST:PORT"}
+    - {name: HTTP_PROXY, value: "http://PROXY-HOST:PORT"}
+    - {name: NO_PROXY, value: "localhost,127.0.0.1,.svc,.cluster.local,auth-service"}

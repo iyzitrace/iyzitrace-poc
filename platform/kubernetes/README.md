@@ -16,14 +16,22 @@ The operators and the platform's internal TLS need cert-manager. If the cluster 
 (`kubectl get pods -n cert-manager` lists running pods), skip this step.
 
 ```bash
-kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.17.2/cert-manager.yaml
-kubectl -n cert-manager rollout status deploy/cert-manager-webhook
+helm upgrade --install cert-manager \
+  oci://quay.io/jetstack/charts/cert-manager --version v1.17.2 \
+  -n cert-manager --create-namespace -f values-cert-manager.yaml --wait --timeout 5m
+kubectl -n cert-manager get pods
 ```
 
-You should see `deployment "cert-manager-webhook" successfully rolled out`.
+You should see three pods running: `cert-manager-...`, `cert-manager-cainjector-...` and
+`cert-manager-webhook-...`.
+
+[values-cert-manager.yaml](values-cert-manager.yaml) installs its custom resource definitions and
+gives every cert-manager pod small CPU and memory requests and limits, which a cluster with quotas
+(OpenShift, for example) requires. A cert-manager you did not install with this file has whatever
+resources its installer gave it.
 
 On OpenShift you can install the "cert-manager Operator for Red Hat OpenShift" from OperatorHub
-instead.
+instead; set the resources of its three pods there.
 
 ## 2. Create the two namespaces
 
@@ -49,7 +57,7 @@ They install the OpenTelemetry and SeaweedFS operators. Once per cluster.
 
 ```bash
 helm upgrade --install iyzitrace-operators \
-  oci://ghcr.io/iyzitrace/charts/iyzitrace-operators --version 0.1.0-dev.c44dd8f \
+  oci://ghcr.io/iyzitrace/charts/iyzitrace-operators --version 0.1.0-dev.0d769a0 \
   -n iyzitrace-system --wait --timeout 10m
 kubectl -n iyzitrace-system get pods
 ```
@@ -62,7 +70,7 @@ This is SeaweedFS with three buckets: one each for traces, logs and metrics.
 
 ```bash
 helm upgrade --install iyzitrace-storage \
-  oci://ghcr.io/iyzitrace/charts/iyzitrace-storage --version 0.1.0-dev.c44dd8f \
+  oci://ghcr.io/iyzitrace/charts/iyzitrace-storage --version 0.1.0-dev.0d769a0 \
   -n iyzitrace --wait --timeout 10m
 kubectl -n iyzitrace wait bucket --all --for=jsonpath='{.status.phase}'=Ready --timeout=5m
 ```
@@ -105,12 +113,27 @@ logs. Without it they still appear in Agent Manager, but their Metrics and Logs 
 
 ```bash
 helm upgrade --install iyzitrace \
-  oci://ghcr.io/iyzitrace/charts/iyzitrace-platform --version 1.3.1-dev.b4f7494 \
+  oci://ghcr.io/iyzitrace/charts/iyzitrace-platform --version 1.3.1-dev.0d769a0 \
   -n iyzitrace -f values-poc.yaml --wait --timeout 20m
 kubectl -n iyzitrace get pods
 ```
 
 The install takes about 5 to 10 minutes. At the end, all 33 pods are `Running`.
+
+**CPU and memory.** `values-poc.yaml` gives every container of the platform small requests
+and limits (together about 0.7 CPU and 2.3 GiB requested). If a pod restarts with
+`OOMKilled` (`kubectl -n iyzitrace get pods`, then `kubectl -n iyzitrace describe pod <pod>`),
+raise that component's memory limit in `values-poc.yaml`; if a component is slow and
+`kubectl -n iyzitrace top pods` shows its CPU at the limit, raise its CPU limit.
+
+**A private registry.** If the cluster may pull images only from your own registry, see
+[registry/README.md](../../registry/README.md): one extra values file per chart.
+
+**A proxy.** Two pods reach the internet: auth-service (it asks GitHub for the newest plugin
+version) and ai-gateway (it calls the AI provider). If that goes through a proxy, add
+[values-proxy.yaml](values-proxy.yaml), with the proxy's address filled in, as one more `-f` after
+`values-poc.yaml`. Without a proxy this is not needed; the platform works, only the update check
+and the AI features need the outside.
 
 Optional: to speed up long metric queries, add `--set thanos.queryFrontend.enabled=true` to the
 command above (or `helm upgrade` later with the same flag). It adds a query-frontend that splits

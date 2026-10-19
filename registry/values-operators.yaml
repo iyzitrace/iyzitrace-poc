@@ -1,0 +1,22 @@
+# Operators chart: every image from the organisation's own registry.
+# Replace REGISTRY with your registry's address (every occurrence). Each image keeps its
+# original address after it. Use it as -f on the operators install.
+
+otelOperator:
+  manager:
+    image:
+      repository: REGISTRY/ghcr.io/open-telemetry/opentelemetry-operator/opentelemetry-operator
+    # The image a collector gets when its resource names none.
+    collectorImage:
+      repository: REGISTRY/docker.io/otel/opentelemetry-collector-contrib
+  kubeRBACProxy:
+    image:
+      repository: REGISTRY/quay.io/brancz/kube-rbac-proxy
+  # The pods `helm test` runs.
+  testFramework:
+    image:
+      repository: REGISTRY/docker.io/library/busybox
+
+seaweedfsOperator:
+  image:
+    registry: REGISTRY/docker.io/chrislusf
