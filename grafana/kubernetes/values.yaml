@@ -1,38 +1,30 @@
-# Settings for the PoC's Grafana, for the Grafana Helm chart. Install it as described in README.md.
-#
-# Most of this file is the same everywhere. A few places depend on your cluster; they are marked
-# EDIT, with the lines to change or to uncomment (remove the # at the start of the line):
-#   EDIT: OpenShift       an OpenShift cluster
-#   EDIT: registry        the cluster may pull images only from your own registry
-#   EDIT: proxy           the cluster reaches GitHub through a proxy
-#   EDIT: certificate     the platform's Route has a certificate signed by the cluster's own CA
-# Leave them as they are on plain Kubernetes with direct internet access.
+# MKK PoC settings for Grafana (step 10 of README.md). OpenShift, your registry and the proxy are already
+# switched on. README.md, step 2 and step 10, replace these words in this file with your values:
+#   REGISTRY          your registry's address
+#   PROXY-HOST:PORT   your HTTP proxy
+#   GRAFANA-HOST      Grafana's public host name (step 10)
 
-# EDIT: OpenShift. OpenShift gives the pod a user id of its own, but the chart sets a fixed one (472).
-# Uncomment the next four lines and, below, set initChownData.enabled to false.
-# securityContext:
-#   runAsUser: null
-#   runAsGroup: null
-#   fsGroup: null
+# OpenShift gives the pod a user id of its own, but the chart sets a fixed one (472): removed here.
+securityContext:
+  runAsUser: null
+  runAsGroup: null
+  fsGroup: null
 
 image:
   # The Grafana version the IyziTrace plugin is developed against (it needs 12.3 or later).
   tag: "13.1.1"
-  # EDIT: registry. Uncomment the next two lines and replace REGISTRY with your registry's address,
-  # for example registry.example.com. The image keeps its original address after it.
-  # registry: REGISTRY/docker.io
-  # repository: grafana/grafana
+  registry: REGISTRY/docker.io
+  repository: grafana/grafana
 
 # The init container that fixes the volume's owner. It needs root, so OpenShift must not run it.
 initChownData:
-  enabled: true     # EDIT: OpenShift. Change to false.
-  # EDIT: registry. Uncomment the next three lines (replace REGISTRY as above).
-  # image:
-  #   registry: REGISTRY/docker.io
-  #   repository: library/busybox
+  enabled: false    # OpenShift: this init container needs root
+  image:
+    registry: REGISTRY/docker.io
+    repository: library/busybox
 
 admin:
-  # Created in step 1 of README.md.
+  # Created in step 10 of README.md.
   existingSecret: grafana-admin
 
 # One pod, one ReadWriteOnce disk: stop the old pod before the new one starts, so an upgrade never waits for the disk.
@@ -72,12 +64,14 @@ env:
   GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
   GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
   GF_ANALYTICS_REPORTING_ENABLED: "false"
-  # EDIT: proxy. Uncomment the next three lines and replace PROXY-HOST:PORT with the proxy's address.
-  # Add the host name of the platform's Route to NO_PROXY if it is reached without the proxy.
-  # HTTPS_PROXY: http://PROXY-HOST:PORT
-  # HTTP_PROXY: http://PROXY-HOST:PORT
-  # NO_PROXY: localhost,127.0.0.1,.svc,.cluster.local
-  # EDIT: certificate. Uncomment the next line and the extraConfigmapMounts lines further down.
+  # The proxy, for the plugin downloads from GitHub. Add the host name of the platform's Route to NO_PROXY
+  # if it is reached without the proxy.
+  HTTPS_PROXY: http://PROXY-HOST:PORT
+  HTTP_PROXY: http://PROXY-HOST:PORT
+  NO_PROXY: localhost,127.0.0.1,.svc,.cluster.local
+  # Grafana's public address (README.md, step 10).
+  GF_SERVER_ROOT_URL: https://GRAFANA-HOST
+  # Only for the certificate case above: uncomment the next line.
   # SSL_CERT_DIR: /etc/platform-ca
   # idForwarding: Grafana sends the signed-in user's identity to the platform.
   # Agent Manager, the AI settings and team authorization need it.
@@ -104,7 +98,8 @@ extraVolumeMounts:
   - name: provisioning-apps
     mountPath: /etc/grafana/provisioning/plugins
 
-# EDIT: certificate. Uncomment these lines (README.md, last section, creates the ConfigMap).
+# Only if the wizard says `x509: certificate signed by unknown authority` (README.md, "If something goes wrong"):
+# create the ConfigMap as described there, and uncomment these lines.
 # extraConfigmapMounts:
 #   - name: platform-ca
 #     mountPath: /etc/platform-ca

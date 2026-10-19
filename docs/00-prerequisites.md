@@ -26,7 +26,7 @@ The cluster must be able to pull these images, directly or from a mirror:
 | quay.io | `prometheus/alertmanager:v0.34.0`, `prometheus-operator/prometheus-config-reloader:v0.93.1`, `brancz/kube-rbac-proxy:v0.20.0`, and the cert-manager images (`jetstack/cert-manager-controller`, `-cainjector`, `-webhook`, `-startupapicheck`, v1.17.2) if you install cert-manager as in step 1 |
 
 If the cluster may pull only from your own registry, mirror these images under their original
-addresses and see "Before you start" in [platform/kubernetes/README.md](../platform/kubernetes/README.md#before-you-start-the-values-files).
+addresses and see [../README.md](../README.md).
 
 To check one image from a cluster node on OpenShift:
 
