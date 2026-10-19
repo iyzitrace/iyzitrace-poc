@@ -2,13 +2,13 @@
 
 The IyziTrace screens live in a Grafana plugin. If the customer has no Grafana you can use for the
 PoC, this installs one next to the platform with the official Grafana Helm chart. The plugin and the
-two plugins it needs are installed by Grafana itself when the pod starts:
+two plugins it needs are installed by Grafana itself when the pod starts, all three from GitHub:
 
 | Plugin | Where it comes from |
 |---|---|
 | IyziTrace 1.3.1 | [the release `grafana-plugin-dev.de49fe9`](https://github.com/iyzitrace/iyzitrace-poc/releases/tag/grafana-plugin-dev.de49fe9) of this repository: a build of the plugin repository's `dev` branch, commit `de49fe9f`. It is not signed, so Grafana is told to let exactly this plugin load unsigned |
-| Infinity data source 4.1.1 | grafana.com. The IyziTrace plugin depends on it |
-| Plotly panel 0.5.0 | grafana.com. The platform's dashboards use it |
+| Infinity data source 4.1.1 | [the release `v4.1.1`](https://github.com/grafana/grafana-infinity-datasource/releases/tag/v4.1.1) of its repository. The IyziTrace plugin depends on it. The zip in `values.yaml` is for amd64; on an arm64 cluster replace `linux_amd64` with `linux_arm64` in its address |
+| Plotly panel 0.5.0 | [the release `v0.5.0`](https://github.com/ae3e/ae3e-plotly-panel/releases/tag/v0.5.0) of its repository. The platform's dashboards use it |
 
 The Grafana is 13.1.1, the version the plugin is developed against (it needs 12.3 or later). If the
 customer already has a Grafana, skip this and install the plugin there instead:
@@ -16,8 +16,8 @@ customer already has a Grafana, skip this and install the plugin there instead:
 
 You need `kubectl` (or `oc` on OpenShift) and `helm` 3.14 or later, logged in to the cluster, and
 the files [values.yaml](values.yaml) (and, for OpenShift, [values-openshift.yaml](values-openshift.yaml))
-from this folder; the commands assume you are in it. The pod needs outbound HTTPS to `grafana.com` and
-`github.com`. Install Grafana **before the platform**: the platform needs Grafana's address in step 6
+from this folder; the commands assume you are in it. The pod needs outbound HTTPS to `github.com`
+(and the cluster must pull `grafana/grafana:13.1.1`); it does not need `grafana.com`. Install Grafana **before the platform**: the platform needs Grafana's address in step 6
 of its guide.
 
 ## 1. Create the namespace and the administrator's login
@@ -45,7 +45,8 @@ kubectl -n iyzitrace-grafana get pods
 ```
 
 You should see one pod, `grafana-...`, `1/1 Running`. The plugins are downloaded in the first
-seconds after it starts.
+seconds after it starts. Without access to grafana.com the pod restarts once on its first start
+(see the table at the end); that is expected.
 
 ## 3. Open it to browsers
 
@@ -90,6 +91,15 @@ Next: the plugin's setup wizard, in [docs/02-console-and-plugin.md](../../docs/0
 Use the platform's **Route address** (`https://<route-host>`) as the Platform URL, not the
 in-cluster one: Grafana's server and your browser both use it.
 
+## If the cluster reaches GitHub through a proxy
+
+Grafana downloads the plugins from GitHub when it starts. Behind a proxy, put the proxy's address in
+[values-proxy.yaml](values-proxy.yaml) (replace `PROXY-HOST:PORT`) and run the command of step 2 again
+with `-f values-proxy.yaml` added after the other `-f` files. The proxy and the firewall must allow
+HTTPS to these hosts: `github.com`, and `release-assets.githubusercontent.com` and
+`objects.githubusercontent.com`, because GitHub sends release downloads there. If the platform's Route
+is reached without the proxy, add its host name to `NO_PROXY` in that file.
+
 ## If the platform's Route uses a certificate Grafana does not trust
 
 The plugin's queries go from Grafana's pod to the platform's Route. If the Route's certificate was
@@ -116,7 +126,9 @@ of this.
 | What you see | What to do |
 |---|---|
 | The pod is `ImagePullBackOff` | the cluster cannot reach Docker Hub (`grafana/grafana:13.1.1`), or its rate limit was hit: [docs/00-prerequisites.md](../../docs/00-prerequisites.md#images) |
-| IyziTrace is not in the plugin list | the pod could not download it: `kubectl -n iyzitrace-grafana logs deploy/grafana` and look for `antreklabs-iyzitrace-app`. It needs outbound HTTPS to github.com (and grafana.com for the other two) |
+| The pod restarted once (`RESTARTS 1`) and its first log has `failed to download plugin yesoreyeram-infinity-datasource` | expected when grafana.com is unreachable: installing the IyziTrace plugin makes Grafana look for its dependency, Infinity, on grafana.com, which fails once; Infinity is already installed from GitHub and the second start works |
+| The log has `Failed to install plugin` for `grafana-lokiexplore-app`, `grafana-pyroscope-app`, `grafana-exploretraces-app` and others | harmless: Grafana tries to download its own default apps from grafana.com; nothing here uses them |
+| IyziTrace is not in the plugin list | the pod could not download it: `kubectl -n iyzitrace-grafana logs deploy/grafana` and look for `antreklabs-iyzitrace-app`. It needs outbound HTTPS to github.com, and to the hosts GitHub redirects downloads to: see the proxy section above |
 | The pod is not created; events say `unable to validate against any security context constraint` | OpenShift: `-f values-openshift.yaml` is missing in step 2 |
 | The wizard or a data source test says `x509: certificate signed by unknown authority` | the section above |
 | Agent Manager says `grafana_admin_required` or answers 403 right after you reinstalled Grafana | the platform remembers the old Grafana's signing keys: `kubectl -n iyzitrace rollout restart sts/auth-service` |

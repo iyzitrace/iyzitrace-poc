@@ -8,6 +8,10 @@ admin:
   # Created in step 1 of README.md.
   existingSecret: grafana-admin
 
+# One pod, one ReadWriteOnce disk: stop the old pod before the new one starts, so an upgrade never waits for the disk.
+deploymentStrategy:
+  type: Recreate
+
 service:
   port: 3000
 
@@ -20,14 +24,14 @@ resources:
     cpu: 100m
     memory: 256Mi
   limits:
+    cpu: 250m
     memory: 1Gi
 
-# Installed when the pod starts: the Infinity data source and the Plotly panel from grafana.com,
-# and the IyziTrace plugin from the PoC repository's release. The pod needs outbound HTTPS to
-# grafana.com and github.com.
+# Installed when the pod starts, all three from GitHub releases (nothing is fetched from grafana.com).
+# The Infinity zip is for amd64; on an arm64 cluster use linux_arm64 in its address.
 plugins:
-  - yesoreyeram-infinity-datasource@4.1.1
-  - ae3e-plotly-panel@0.5.0
+  - yesoreyeram-infinity-datasource@4.1.1@https://github.com/grafana/grafana-infinity-datasource/releases/download/v4.1.1/yesoreyeram-infinity-datasource-4.1.1.linux_amd64.zip
+  - ae3e-plotly-panel@0.5.0@https://github.com/ae3e/ae3e-plotly-panel/releases/download/v0.5.0/ae3e-plotly-panel-0.5.0.zip
   - antreklabs-iyzitrace-app@1.3.1@https://github.com/iyzitrace/iyzitrace-poc/releases/download/grafana-plugin-dev.de49fe9/antreklabs-iyzitrace-app-1.3.1-dev.de49fe9.zip
 
 grafana.ini:
@@ -36,6 +40,11 @@ grafana.ini:
     allow_loading_unsigned_plugins: antreklabs-iyzitrace-app
 
 env:
+  # Grafana's own plugin set and update checks would go to grafana.com.
+  GF_PLUGINS_PREINSTALL: ""
+  GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+  GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+  GF_ANALYTICS_REPORTING_ENABLED: "false"
   # idForwarding: Grafana sends the signed-in user's identity to the platform.
   # Agent Manager, the AI settings and team authorization need it.
   GF_FEATURE_TOGGLES_ENABLE: traceqlEditor,idForwarding
