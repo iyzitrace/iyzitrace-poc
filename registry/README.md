@@ -27,7 +27,8 @@ occurrence), then add it as one more `-f` on that chart's install command:
 | [values-operators.yaml](values-operators.yaml) | the operators |
 | [values-storage.yaml](values-storage.yaml) | the object store |
 | [values-platform.yaml](values-platform.yaml) | the platform |
-| [values-grafana.yaml](values-grafana.yaml) | Grafana ([grafana/kubernetes](../grafana/kubernetes/README.md)) |
+
+Grafana has no file here: its registry lines are in [grafana/kubernetes/values.yaml](../grafana/kubernetes/values.yaml), marked `EDIT: registry`.
 
 For example, the platform install of [platform/kubernetes/README.md](../platform/kubernetes/README.md),
 step 6, becomes:

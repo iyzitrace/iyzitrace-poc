@@ -15,8 +15,7 @@ customer already has a Grafana, skip this and install the plugin there instead:
 [docs/02-console-and-plugin.md](../../docs/02-console-and-plugin.md).
 
 You need `kubectl` (or `oc` on OpenShift) and `helm` 3.14 or later, logged in to the cluster, and
-the files [values.yaml](values.yaml) (and, for OpenShift, [values-openshift.yaml](values-openshift.yaml))
-from this folder; the commands assume you are in it. The pod needs outbound HTTPS to `github.com`
+the file [values.yaml](values.yaml) from this folder; the commands assume you are in it. The pod needs outbound HTTPS to `github.com`
 (and the cluster must pull `grafana/grafana:13.1.1`); it does not need `grafana.com`. Install Grafana **before the platform**: the platform needs Grafana's address in step 6
 of its guide.
 
@@ -29,62 +28,25 @@ kubectl -n iyzitrace-grafana create secret generic grafana-admin --from-literal=
 
 Replace `CHOOSE-A-PASSWORD` with your own.
 
-## 2. Install Grafana
+## 2. Edit values.yaml, then install
 
-Pick the situation that fits and run that one command, in this folder. It is the same chart every
-time; the `-f` files only add what the situation needs:
+Open [values.yaml](values.yaml). Most of it stays as it is. A few places are marked `EDIT`; change
+only the ones that apply to your cluster. "Uncomment" means: remove the `#` at the start of the line.
 
-| `-f` file | What it adds | When |
-|---|---|---|
-| [values.yaml](values.yaml) | the plugins, the administrator login, small resources | always |
-| [values-openshift.yaml](values-openshift.yaml) | lets OpenShift choose the user id (the chart sets a fixed one, 472) | the cluster is OpenShift |
-| [values-proxy.yaml](values-proxy.yaml) | the proxy settings; replace `PROXY-HOST:PORT` in it first | the cluster reaches GitHub only through a proxy |
-| [../../registry/values-grafana.yaml](../../registry/values-grafana.yaml) | `grafana/grafana` and `busybox` from your registry; replace `REGISTRY` in it first | only your own registry may be pulled from ([registry/README.md](../../registry/README.md)) |
-| [values-ca.yaml](values-ca.yaml) | trust of an internal certificate authority | see the last section, after the platform's Route exists |
+| If your cluster... | Do this in values.yaml |
+|---|---|
+| is OpenShift | uncomment the `securityContext` lines at the top, and set `initChownData.enabled` to `false` |
+| may pull images only from your own registry | uncomment the two `registry`/`repository` lines under `image:` and the three `image:` lines under `initChownData:`, and replace `REGISTRY` with your registry's address in all of them (for example `registry.example.com`; the image keeps its original address after it: `registry.example.com/docker.io/grafana/grafana`) |
+| reaches GitHub only through a proxy | uncomment the three proxy lines under `env:` and replace `PROXY-HOST:PORT` |
+| has a Route signed by the cluster's own CA | do it later, in the last section of this guide |
 
-**Kubernetes:**
+On plain Kubernetes with direct internet access, change nothing. Then install, in this folder:
 
 ```bash
 helm upgrade --install grafana \
   oci://ghcr.io/grafana-community/helm-charts/grafana --version 14.0.1 \
   -n iyzitrace-grafana -f values.yaml --wait --timeout 10m
 ```
-
-**OpenShift:**
-
-```bash
-helm upgrade --install grafana \
-  oci://ghcr.io/grafana-community/helm-charts/grafana --version 14.0.1 \
-  -n iyzitrace-grafana -f values.yaml -f values-openshift.yaml --wait --timeout 10m
-```
-
-**OpenShift, through a proxy:**
-
-```bash
-helm upgrade --install grafana \
-  oci://ghcr.io/grafana-community/helm-charts/grafana --version 14.0.1 \
-  -n iyzitrace-grafana -f values.yaml -f values-openshift.yaml -f values-proxy.yaml --wait --timeout 10m
-```
-
-**OpenShift, from your own registry:**
-
-```bash
-helm upgrade --install grafana \
-  oci://ghcr.io/grafana-community/helm-charts/grafana --version 14.0.1 \
-  -n iyzitrace-grafana -f values.yaml -f values-openshift.yaml -f ../../registry/values-grafana.yaml --wait --timeout 10m
-```
-
-**OpenShift, through a proxy and from your own registry:**
-
-```bash
-helm upgrade --install grafana \
-  oci://ghcr.io/grafana-community/helm-charts/grafana --version 14.0.1 \
-  -n iyzitrace-grafana -f values.yaml -f values-openshift.yaml -f values-proxy.yaml -f ../../registry/values-grafana.yaml --wait --timeout 10m
-```
-
-On plain Kubernetes with a proxy, your own registry, or both: take the OpenShift command that matches
-and remove `-f values-openshift.yaml`. Any other mix works the same way: add or remove `-f` files; the
-files do not set the same keys, so their order does not matter.
 
 The chart itself comes from `ghcr.io`: with your own registry, mirror it, or download it once with
 `helm pull` and install from the file. The plugins come from GitHub, not from a registry.
@@ -115,9 +77,8 @@ your cluster does it):
 kubectl -n iyzitrace-grafana create ingress grafana --class=nginx --rule='grafana.example.com/*=grafana:3000'
 ```
 
-Then tell Grafana its address: run your command of step 2 again with
-`--set env.GF_SERVER_ROOT_URL=https://<grafana-host>` added (replace `<grafana-host>`). On OpenShift,
-keep `-f values-openshift.yaml` in it.
+Then tell Grafana its address: run the command of step 2 again with
+`--set env.GF_SERVER_ROOT_URL=https://<grafana-host>` added (replace `<grafana-host>`).
 
 ## 4. Check it
 
@@ -142,10 +103,9 @@ in-cluster one: Grafana's server and your browser both use it.
 
 ## If the cluster reaches GitHub through a proxy
 
-Grafana downloads the plugins from GitHub when it starts. Behind a proxy, put the proxy's address in
-[values-proxy.yaml](values-proxy.yaml) (replace `PROXY-HOST:PORT`) and use the proxy commands of step 2 (they
-include `-f values-proxy.yaml`). The proxy and the firewall must allow
-HTTPS to these hosts: `github.com`, and `release-assets.githubusercontent.com` and
+Grafana downloads the plugins from GitHub when it starts. Behind a proxy, uncomment the proxy lines in
+[values.yaml](values.yaml) (step 2) and run the install command again. The proxy and the firewall must
+allow HTTPS to these hosts: `github.com`, and `release-assets.githubusercontent.com` and
 `objects.githubusercontent.com`, because GitHub sends release downloads there. If the platform's Route
 is reached without the proxy, add its host name to `NO_PROXY` in that file.
 
@@ -166,7 +126,8 @@ kubectl -n iyzitrace-grafana create configmap platform-ca --from-file=router-ca.
 **Elsewhere:** put the authority's certificate (PEM) in a file called `router-ca.crt` and run the
 second command only.
 
-Then run your command of step 2 again with `-f values-ca.yaml` added after the other `-f` files; Grafana
+Then, in [values.yaml](values.yaml), uncomment the `SSL_CERT_DIR` line under `env:` and the
+`extraConfigmapMounts` lines at the end, and run the install command of step 2 again; Grafana
 restarts. Run the wizard's Verify again. A Route with a certificate from a public authority needs none
 of this.
 
@@ -174,11 +135,11 @@ of this.
 
 | What you see | What to do |
 |---|---|
-| The pod is `ImagePullBackOff` | the cluster cannot reach Docker Hub (`grafana/grafana:13.1.1`), or its rate limit was hit; or your registry does not have the image under the address `registry/values-grafana.yaml` builds: [docs/00-prerequisites.md](../../docs/00-prerequisites.md#images) |
+| The pod is `ImagePullBackOff` | the cluster cannot reach Docker Hub (`grafana/grafana:13.1.1`), or its rate limit was hit; or your registry does not have the image under the address the registry lines of values.yaml build: [docs/00-prerequisites.md](../../docs/00-prerequisites.md#images) |
 | The pod restarted once (`RESTARTS 1`) and its first log has `failed to download plugin yesoreyeram-infinity-datasource` | expected when grafana.com is unreachable: installing the IyziTrace plugin makes Grafana look for its dependency, Infinity, on grafana.com, which fails once; Infinity is already installed from GitHub and the second start works |
 | The log has `Failed to install plugin` for `grafana-lokiexplore-app`, `grafana-pyroscope-app`, `grafana-exploretraces-app` and others | harmless: Grafana tries to download its own default apps from grafana.com; nothing here uses them |
 | IyziTrace is not in the plugin list | the pod could not download it: `kubectl -n iyzitrace-grafana logs deploy/grafana` and look for `antreklabs-iyzitrace-app`. It needs outbound HTTPS to github.com, and to the hosts GitHub redirects downloads to: see the proxy section above |
-| The pod is not created; events say `unable to validate against any security context constraint` | OpenShift: `-f values-openshift.yaml` is missing in step 2 |
+| The pod is not created; events say `unable to validate against any security context constraint` | OpenShift: the OpenShift edit of values.yaml (step 2) was not made |
 | The wizard or a data source test says `x509: certificate signed by unknown authority` | the section above |
 | Agent Manager says `grafana_admin_required` or answers 403 right after you reinstalled Grafana | the platform remembers the old Grafana's signing keys: `kubectl -n iyzitrace rollout restart sts/auth-service` |
 

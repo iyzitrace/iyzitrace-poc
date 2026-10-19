@@ -1,8 +1,35 @@
 # Settings for the PoC's Grafana, for the Grafana Helm chart. Install it as described in README.md.
+#
+# Most of this file is the same everywhere. A few places depend on your cluster; they are marked
+# EDIT, with the lines to change or to uncomment (remove the # at the start of the line):
+#   EDIT: OpenShift       an OpenShift cluster
+#   EDIT: registry        the cluster may pull images only from your own registry
+#   EDIT: proxy           the cluster reaches GitHub through a proxy
+#   EDIT: certificate     the platform's Route has a certificate signed by the cluster's own CA
+# Leave them as they are on plain Kubernetes with direct internet access.
+
+# EDIT: OpenShift. OpenShift gives the pod a user id of its own, but the chart sets a fixed one (472).
+# Uncomment the next four lines and, below, set initChownData.enabled to false.
+# securityContext:
+#   runAsUser: null
+#   runAsGroup: null
+#   fsGroup: null
 
 image:
   # The Grafana version the IyziTrace plugin is developed against (it needs 12.3 or later).
   tag: "13.1.1"
+  # EDIT: registry. Uncomment the next two lines and replace REGISTRY with your registry's address,
+  # for example registry.example.com. The image keeps its original address after it.
+  # registry: REGISTRY/docker.io
+  # repository: grafana/grafana
+
+# The init container that fixes the volume's owner. It needs root, so OpenShift must not run it.
+initChownData:
+  enabled: true     # EDIT: OpenShift. Change to false.
+  # EDIT: registry. Uncomment the next three lines (replace REGISTRY as above).
+  # image:
+  #   registry: REGISTRY/docker.io
+  #   repository: library/busybox
 
 admin:
   # Created in step 1 of README.md.
@@ -45,6 +72,13 @@ env:
   GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
   GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
   GF_ANALYTICS_REPORTING_ENABLED: "false"
+  # EDIT: proxy. Uncomment the next three lines and replace PROXY-HOST:PORT with the proxy's address.
+  # Add the host name of the platform's Route to NO_PROXY if it is reached without the proxy.
+  # HTTPS_PROXY: http://PROXY-HOST:PORT
+  # HTTP_PROXY: http://PROXY-HOST:PORT
+  # NO_PROXY: localhost,127.0.0.1,.svc,.cluster.local
+  # EDIT: certificate. Uncomment the next line and the extraConfigmapMounts lines further down.
+  # SSL_CERT_DIR: /etc/platform-ca
   # idForwarding: Grafana sends the signed-in user's identity to the platform.
   # Agent Manager, the AI settings and team authorization need it.
   GF_FEATURE_TOGGLES_ENABLE: traceqlEditor,idForwarding
@@ -69,6 +103,13 @@ extraVolumes:
 extraVolumeMounts:
   - name: provisioning-apps
     mountPath: /etc/grafana/provisioning/plugins
+
+# EDIT: certificate. Uncomment these lines (README.md, last section, creates the ConfigMap).
+# extraConfigmapMounts:
+#   - name: platform-ca
+#     mountPath: /etc/platform-ca
+#     configMap: platform-ca
+#     readOnly: true
 
 testFramework:
   enabled: false
