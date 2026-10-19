@@ -16,21 +16,22 @@ The operators and the platform's internal TLS need cert-manager. If the cluster 
 (`kubectl get pods -n cert-manager` lists running pods), skip this step.
 
 ```bash
-kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.17.2/cert-manager.yaml
-kubectl -n cert-manager rollout status deploy/cert-manager-webhook
+helm upgrade --install cert-manager \
+  oci://quay.io/jetstack/charts/cert-manager --version v1.17.2 \
+  -n cert-manager --create-namespace -f values-cert-manager.yaml --wait --timeout 5m
+kubectl -n cert-manager get pods
 ```
 
-You should see `deployment "cert-manager-webhook" successfully rolled out`.
+You should see three pods running: `cert-manager-...`, `cert-manager-cainjector-...` and
+`cert-manager-webhook-...`.
 
-The manifest sets no CPU or memory requests and limits on its pods, and a cluster with quotas
-(OpenShift, for example) refuses pods without them. Set them:
-
-```bash
-kubectl -n cert-manager set resources deployment --all --requests=cpu=10m,memory=32Mi --limits=cpu=250m,memory=256Mi
-```
+[values-cert-manager.yaml](values-cert-manager.yaml) installs its custom resource definitions and
+gives every cert-manager pod small CPU and memory requests and limits, which a cluster with quotas
+(OpenShift, for example) requires. A cert-manager you did not install with this file has whatever
+resources its installer gave it.
 
 On OpenShift you can install the "cert-manager Operator for Red Hat OpenShift" from OperatorHub
-instead.
+instead; set the resources of its three pods there.
 
 ## 2. Create the two namespaces
 
@@ -56,7 +57,7 @@ They install the OpenTelemetry and SeaweedFS operators. Once per cluster.
 
 ```bash
 helm upgrade --install iyzitrace-operators \
-  oci://ghcr.io/iyzitrace/charts/iyzitrace-operators --version 0.1.0-dev.c44dd8f \
+  oci://ghcr.io/iyzitrace/charts/iyzitrace-operators --version 0.1.0-dev.0d769a0 \
   -n iyzitrace-system --wait --timeout 10m
 kubectl -n iyzitrace-system get pods
 ```
@@ -69,7 +70,7 @@ This is SeaweedFS with three buckets: one each for traces, logs and metrics.
 
 ```bash
 helm upgrade --install iyzitrace-storage \
-  oci://ghcr.io/iyzitrace/charts/iyzitrace-storage --version 0.1.0-dev.c44dd8f \
+  oci://ghcr.io/iyzitrace/charts/iyzitrace-storage --version 0.1.0-dev.0d769a0 \
   -n iyzitrace --wait --timeout 10m
 kubectl -n iyzitrace wait bucket --all --for=jsonpath='{.status.phase}'=Ready --timeout=5m
 ```
@@ -112,7 +113,7 @@ logs. Without it they still appear in Agent Manager, but their Metrics and Logs 
 
 ```bash
 helm upgrade --install iyzitrace \
-  oci://ghcr.io/iyzitrace/charts/iyzitrace-platform --version 1.3.1-dev.b4f7494 \
+  oci://ghcr.io/iyzitrace/charts/iyzitrace-platform --version 1.3.1-dev.0d769a0 \
   -n iyzitrace -f values-poc.yaml --wait --timeout 20m
 kubectl -n iyzitrace get pods
 ```

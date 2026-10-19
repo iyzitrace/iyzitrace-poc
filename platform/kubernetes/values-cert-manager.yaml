@@ -1,0 +1,26 @@
+# cert-manager for the PoC, for the cert-manager Helm chart (step 1 of README.md): its custom
+# resource definitions, and small CPU and memory requests and limits on every pod, as OpenShift
+# quotas require.
+
+crds:
+  enabled: true
+
+resources:
+  requests: {cpu: 10m, memory: 32Mi}
+  limits: {cpu: 250m, memory: 256Mi}
+
+webhook:
+  resources:
+    requests: {cpu: 10m, memory: 32Mi}
+    limits: {cpu: 250m, memory: 128Mi}
+
+cainjector:
+  resources:
+    requests: {cpu: 10m, memory: 32Mi}
+    limits: {cpu: 250m, memory: 256Mi}
+
+# The Job that checks cert-manager is answering after the install.
+startupapicheck:
+  resources:
+    requests: {cpu: 10m, memory: 16Mi}
+    limits: {cpu: 100m, memory: 64Mi}

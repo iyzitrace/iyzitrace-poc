@@ -23,6 +23,7 @@ occurrence), then add it as one more `-f` on that chart's install command:
 
 | File | Chart |
 |---|---|
+| [values-cert-manager.yaml](values-cert-manager.yaml) | cert-manager (with [../platform/kubernetes/values-cert-manager.yaml](../platform/kubernetes/values-cert-manager.yaml)) |
 | [values-operators.yaml](values-operators.yaml) | the operators |
 | [values-storage.yaml](values-storage.yaml) | the object store |
 | [values-platform.yaml](values-platform.yaml) | the platform |
@@ -33,24 +34,13 @@ step 6, becomes:
 
 ```bash
 helm upgrade --install iyzitrace \
-  oci://ghcr.io/iyzitrace/charts/iyzitrace-platform --version 1.3.1-dev.b4f7494 \
+  oci://ghcr.io/iyzitrace/charts/iyzitrace-platform --version 1.3.1-dev.0d769a0 \
   -n iyzitrace -f values-poc.yaml -f ../../registry/values-platform.yaml --wait --timeout 20m
 ```
 
 The charts themselves come from `oci://ghcr.io/iyzitrace/charts` (and Grafana's from
 `oci://ghcr.io/grafana-community/helm-charts`); mirror them too, or download them once with
 `helm pull` and install from the files.
-
-## cert-manager
-
-The cert-manager manifest has four images, all under `quay.io/jetstack`. Put your registry in
-front of them as you apply it:
-
-```bash
-curl -sL https://github.com/cert-manager/cert-manager/releases/download/v1.17.2/cert-manager.yaml | sed 's#quay.io/jetstack#REGISTRY/quay.io/jetstack#g' | kubectl apply -f -
-```
-
-(Replace `REGISTRY` here as well.)
 
 ## What is not covered
 
