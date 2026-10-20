@@ -160,7 +160,7 @@ kubectl -n iyzitrace get pods
 The install takes about 5 to 10 minutes. At the end, all 33 pods are `Running`.
 
 **CPU and memory.** `values.yaml` gives every container of the platform small requests
-and limits (together about 0.7 CPU and 2.3 GiB requested). If a pod restarts with
+and limits (together about 1.3 CPU and 3.8 GiB requested, with the object store). If a pod restarts with
 `OOMKilled` (`kubectl -n iyzitrace get pods`, then `kubectl -n iyzitrace describe pod <pod>`),
 raise that component's memory limit in `values.yaml`; if a component is slow and
 `kubectl -n iyzitrace top pods` shows its CPU at the limit, raise its CPU limit.
