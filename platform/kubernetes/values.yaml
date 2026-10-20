@@ -21,16 +21,16 @@ authService:
         metric-otel-enrichment-collector-extension,metric-otel-enrichment-collector-monitoring,\
         trace-otel-enrichment-collector-extension,trace-otel-enrichment-collector-monitoring"
   resources:
-    requests: {cpu: 25m, memory: 64Mi}
-    limits: {cpu: 250m, memory: 512Mi}
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {cpu: 500m, memory: 512Mi}
 
 lawrence:
   # Where collectors outside the cluster send their own metrics and logs:
   # https://<route-host>/ingest/opamp/v1/telemetry/  (keep the slash at the end)
   agentHttpEndpoint: https://ROUTE-HOST/ingest/opamp/v1/telemetry/
   resources:
-    requests: {cpu: 10m, memory: 32Mi}
-    limits: {cpu: 100m, memory: 256Mi}
+    requests: {cpu: 25m, memory: 64Mi}
+    limits: {cpu: 250m, memory: 256Mi}
 
 # Only on Kubernetes with an Ingress controller. On OpenShift, keep enabled: false and use a Route.
 nginx:
@@ -41,54 +41,56 @@ nginx:
     annotations: {}
     tlsSecretName: ""
   resources:
-    requests: {cpu: 10m, memory: 16Mi}
-    limits: {cpu: 250m, memory: 128Mi}
+    requests: {cpu: 25m, memory: 32Mi}
+    limits: {cpu: 500m, memory: 128Mi}
 
 # --- CPU and memory ------------------------------------------------------------------
-# Smaller than the chart's own values, which are small already: enough for a handful of
-# servers sending data. Every container must have requests and limits (OpenShift quotas
-# refuse pods without them). If a pod is restarted with `OOMKilled`
-# (kubectl -n iyzitrace get pods; kubectl -n iyzitrace describe pod <pod>), raise that
-# component's memory limit here; a component that is slow and shows CPU at its limit
-# (kubectl -n iyzitrace top pods) needs a higher CPU limit.
+# Sized for a handful of servers sending data, from a test: 8 minutes of 500 spans, 500 log lines and 200
+# metric points per second from 10 services, plus dashboard-like queries, on a laptop cluster. The largest
+# peaks were tempo-ingester 420 MiB, holmes 380 MiB and tempo-compactor 290 MiB; every memory limit is at
+# least twice the peak, and every CPU limit more than twice. Every container must have requests and limits
+# (OpenShift quotas refuse pods without them). If a pod is restarted with `OOMKilled`
+# (kubectl -n iyzitrace get pods; kubectl -n iyzitrace describe pod <pod>), raise that component's memory
+# limit here; a component that is slow and shows CPU at its limit (kubectl -n iyzitrace top pods) needs a
+# higher CPU limit. More servers, or much longer queries, need more.
 
 queryGuard:
   resources:
-    requests: {cpu: 10m, memory: 16Mi}
+    requests: {cpu: 25m, memory: 32Mi}
     limits: {cpu: 250m, memory: 256Mi}
 inventoryService:
   resources:
-    requests: {cpu: 25m, memory: 32Mi}
-    limits: {cpu: 250m, memory: 512Mi}
+    requests: {cpu: 100m, memory: 128Mi}
+    limits: {cpu: 500m, memory: 512Mi}
 holmes:
   resources:
-    requests: {cpu: 50m, memory: 256Mi}
-    limits: {cpu: 500m, memory: 1Gi}
+    requests: {cpu: 100m, memory: 320Mi}
+    limits: {cpu: 1000m, memory: 1Gi}
 aiGateway:
   extraEnv:
     - {name: HTTPS_PROXY, value: "http://PROXY-HOST:PORT"}
     - {name: HTTP_PROXY, value: "http://PROXY-HOST:PORT"}
     - {name: NO_PROXY, value: "localhost,127.0.0.1,.svc,.cluster.local,auth-service"}
   resources:
-    requests: {cpu: 10m, memory: 128Mi}
+    requests: {cpu: 25m, memory: 160Mi}
     limits: {cpu: 250m, memory: 512Mi}
 collectors:
   trace:
     resources:
-      requests: {cpu: 25m, memory: 64Mi}
+      requests: {cpu: 50m, memory: 128Mi}
       limits: {cpu: 500m, memory: 512Mi}
   metric:
     resources:
-      requests: {cpu: 25m, memory: 64Mi}
+      requests: {cpu: 50m, memory: 128Mi}
       limits: {cpu: 500m, memory: 512Mi}
   log:
     resources:
-      requests: {cpu: 25m, memory: 64Mi}
+      requests: {cpu: 50m, memory: 128Mi}
       limits: {cpu: 500m, memory: 512Mi}
 selfmon:
   resources:
-    requests: {cpu: 10m, memory: 64Mi}
-    limits: {cpu: 100m, memory: 256Mi}
+    requests: {cpu: 25m, memory: 160Mi}
+    limits: {cpu: 250m, memory: 512Mi}
 
 otelOperator:
   manager:
@@ -220,22 +222,22 @@ tempo:
   ingester:
     initContainers: *waitTempo
     resources:
-      requests: {cpu: 25m, memory: 64Mi}
-      limits: {cpu: 500m, memory: 512Mi}
+      requests: {cpu: 50m, memory: 256Mi}
+      limits: {cpu: 500m, memory: 1Gi}
   metricsGenerator:
     initContainers: *waitTempo
     resources:
-      requests: {cpu: 25m, memory: 64Mi}
-      limits: {cpu: 500m, memory: 512Mi}
+      requests: {cpu: 50m, memory: 192Mi}
+      limits: {cpu: 500m, memory: 1Gi}
   distributor:
     resources:
-      requests: {cpu: 10m, memory: 32Mi}
+      requests: {cpu: 25m, memory: 48Mi}
       limits: {cpu: 250m, memory: 256Mi}
   querier:
     initContainers: *waitTempo
     resources:
-      requests: {cpu: 10m, memory: 32Mi}
-      limits: {cpu: 250m, memory: 256Mi}
+      requests: {cpu: 25m, memory: 64Mi}
+      limits: {cpu: 500m, memory: 512Mi}
   queryFrontend:
     resources:
       requests: {cpu: 10m, memory: 32Mi}
@@ -243,8 +245,8 @@ tempo:
   compactor:
     initContainers: *waitTempo
     resources:
-      requests: {cpu: 10m, memory: 32Mi}
-      limits: {cpu: 250m, memory: 256Mi}
+      requests: {cpu: 25m, memory: 192Mi}
+      limits: {cpu: 250m, memory: 1Gi}
 
 loki:
   global:
@@ -252,25 +254,25 @@ loki:
   ingester:
     initContainers: *waitLoki
     resources:
-      requests: {cpu: 25m, memory: 64Mi}
-      limits: {cpu: 500m, memory: 512Mi}
+      requests: {cpu: 50m, memory: 128Mi}
+      limits: {cpu: 500m, memory: 1Gi}
   compactor:
     initContainers: *waitLoki
     resources:
-      requests: {cpu: 10m, memory: 32Mi}
+      requests: {cpu: 25m, memory: 48Mi}
       limits: {cpu: 250m, memory: 256Mi}
   distributor:
     resources:
-      requests: {cpu: 10m, memory: 32Mi}
+      requests: {cpu: 25m, memory: 64Mi}
       limits: {cpu: 250m, memory: 256Mi}
   querier:
     initContainers: *waitLoki
     resources:
-      requests: {cpu: 10m, memory: 32Mi}
-      limits: {cpu: 250m, memory: 256Mi}
+      requests: {cpu: 25m, memory: 96Mi}
+      limits: {cpu: 500m, memory: 512Mi}
   queryFrontend:
     resources:
-      requests: {cpu: 10m, memory: 32Mi}
+      requests: {cpu: 10m, memory: 48Mi}
       limits: {cpu: 100m, memory: 128Mi}
   queryScheduler:
     resources:
@@ -278,7 +280,7 @@ loki:
       limits: {cpu: 100m, memory: 128Mi}
   indexGateway:
     resources:
-      requests: {cpu: 10m, memory: 32Mi}
+      requests: {cpu: 25m, memory: 64Mi}
       limits: {cpu: 250m, memory: 256Mi}
 
 thanos:
@@ -292,27 +294,27 @@ thanos:
       limits: {cpu: 100m, memory: 128Mi}
   query:
     resources:
-      requests: {cpu: 10m, memory: 32Mi}
-      limits: {cpu: 250m, memory: 256Mi}
+      requests: {cpu: 25m, memory: 64Mi}
+      limits: {cpu: 500m, memory: 512Mi}
   receive:
     extraInitContainers: *waitThanos
     resources:
-      requests: {cpu: 25m, memory: 64Mi}
-      limits: {cpu: 500m, memory: 512Mi}
+      requests: {cpu: 50m, memory: 128Mi}
+      limits: {cpu: 500m, memory: 1Gi}
   storegateway:
     extraInitContainers: *waitThanos
     resources:
-      requests: {cpu: 10m, memory: 32Mi}
-      limits: {cpu: 250m, memory: 256Mi}
+      requests: {cpu: 25m, memory: 64Mi}
+      limits: {cpu: 250m, memory: 512Mi}
   compactor:
     extraInitContainers: *waitThanos
     resources:
-      requests: {cpu: 25m, memory: 64Mi}
-      limits: {cpu: 500m, memory: 512Mi}
+      requests: {cpu: 50m, memory: 128Mi}
+      limits: {cpu: 500m, memory: 1Gi}
   ruler:
     extraInitContainers: *waitThanos
     resources:
-      requests: {cpu: 10m, memory: 32Mi}
+      requests: {cpu: 25m, memory: 64Mi}
       limits: {cpu: 250m, memory: 256Mi}
 
 thanosInternal:
@@ -320,7 +322,7 @@ thanosInternal:
     image: *thanosImage
   query:
     resources:
-      requests: {cpu: 10m, memory: 32Mi}
+      requests: {cpu: 25m, memory: 48Mi}
       limits: {cpu: 250m, memory: 256Mi}
 
 alertmanager:
@@ -330,5 +332,5 @@ alertmanager:
     image:
       repository: REGISTRY/quay.io/prometheus-operator/prometheus-config-reloader
   resources:
-    requests: {cpu: 5m, memory: 16Mi}
-    limits: {cpu: 50m, memory: 64Mi}
+    requests: {cpu: 10m, memory: 32Mi}
+    limits: {cpu: 250m, memory: 128Mi}
