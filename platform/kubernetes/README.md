@@ -7,6 +7,11 @@ extra, the step says so.
 You need `kubectl` (or `oc` on OpenShift) and `helm` 3.14 or later, logged in to the cluster as
 cluster-admin. The machine must reach `ghcr.io`: the charts are downloaded from there.
 
+The operators, object store and platform charts are installed with `--devel` and no version: that gives the
+newest chart we have published, so this guide does not change when a chart is updated. (`--devel` is needed
+because the charts are pre-release versions, which Helm skips otherwise; `helm list -A` shows which version
+you got.) cert-manager and Grafana come from other projects and keep a fixed version.
+
 You also need two files from this repository, in the folder the commands below run from:
 [values.yaml](values.yaml) and [values-cert-manager.yaml](values-cert-manager.yaml). Download them or
 clone the repository.
@@ -96,7 +101,7 @@ They install the OpenTelemetry and SeaweedFS operators. Once per cluster.
 
 ```bash
 helm upgrade --install iyzitrace-operators \
-  oci://ghcr.io/iyzitrace/charts/iyzitrace-operators --version 0.1.0-dev.0d769a0 \
+  oci://ghcr.io/iyzitrace/charts/iyzitrace-operators --devel \
   -n iyzitrace-system -f values.yaml --wait --timeout 10m
 kubectl -n iyzitrace-system get pods
 ```
@@ -109,7 +114,7 @@ This is SeaweedFS with three buckets: one each for traces, logs and metrics.
 
 ```bash
 helm upgrade --install iyzitrace-storage \
-  oci://ghcr.io/iyzitrace/charts/iyzitrace-storage --version 0.1.0-dev.0d769a0 \
+  oci://ghcr.io/iyzitrace/charts/iyzitrace-storage --devel \
   -n iyzitrace -f values.yaml --wait --timeout 10m
 kubectl -n iyzitrace wait bucket --all --for=jsonpath='{.status.phase}'=Ready --timeout=5m
 ```
@@ -152,7 +157,7 @@ logs. Without it they still appear in Agent Manager, but their Metrics and Logs 
 
 ```bash
 helm upgrade --install iyzitrace \
-  oci://ghcr.io/iyzitrace/charts/iyzitrace-platform --version 1.3.1-dev.0d769a0 \
+  oci://ghcr.io/iyzitrace/charts/iyzitrace-platform --devel \
   -n iyzitrace -f values.yaml --wait --timeout 20m
 kubectl -n iyzitrace get pods
 ```
