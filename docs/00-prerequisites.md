@@ -8,9 +8,10 @@
   `oc get scc nonroot-v2` finds it.
 - **A default StorageClass with about 125 GiB free.** The platform asks for 17 disks; the object
   store is 50 GiB of that. Check: `kubectl get storageclass` shows one marked `(default)`.
-- **About 4 CPU and 16 GiB memory free on the workers.** The pods request about 1 CPU and
-  2.5 GiB together (platform, object store, operators, cert-manager); their limits add up to about
-  11 CPU and 14 GiB, so the nodes need room for the pods to use more than they request.
+- **About 4 CPU and 16 GiB memory free on the workers.** The pods request about 1.4 CPU and
+  4 GiB together (platform, object store, operators, cert-manager); their limits add up to about
+  15 CPU and 19 GiB, so the nodes need room for the pods to use more than they request. In a test with
+  10 services sending data the pods used about 3 GiB together.
 - **cert-manager**, or permission to install it. Check: `kubectl get pods -n cert-manager`.
 - **A host name for the platform.** On OpenShift the Route gets one from the cluster's apps
   domain; you can also choose one.
