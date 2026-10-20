@@ -69,10 +69,11 @@ sed -i 's#REGISTRY#PUT HERE#g' platform/kubernetes/values.yaml platform/kubernet
 sed -i 's#PROXY-HOST:PORT#PUT HERE#g' platform/kubernetes/values.yaml grafana/kubernetes/values.yaml
 ```
 
-On a Mac, write `sed -i ''` instead of `sed -i`. Check that nothing is left:
+On a Mac, write `sed -i ''` instead of `sed -i`. Check that nothing is left (neither a word to replace nor
+`PUT HERE` that you forgot to replace):
 
 ```bash
-grep -n "REGISTRY\|PROXY-HOST" platform/kubernetes/values.yaml platform/kubernetes/values-cert-manager.yaml grafana/kubernetes/values.yaml
+grep -n "REGISTRY\|PROXY-HOST\|PUT HERE" platform/kubernetes/values.yaml platform/kubernetes/values-cert-manager.yaml grafana/kubernetes/values.yaml
 ```
 
 It must print nothing.
@@ -138,7 +139,8 @@ The last command prints the host name. Put it into the settings file, replacing 
 sed -i 's#ROUTE-HOST#PUT HERE#g' values.yaml
 ```
 
-(Mac: `sed -i ''`.) The Route answers 503 until step 8 is done.
+(Mac: `sed -i ''`.) Check: `grep -n "ROUTE-HOST\|PUT HERE" values.yaml` must print nothing.
+The Route answers 503 until step 8 is done.
 
 ## 8. Install the platform
 
@@ -178,13 +180,14 @@ Put the host name it prints into the settings file (replace `PUT HERE`), and ins
 
 ```bash
 sed -i 's#GRAFANA-HOST#PUT HERE#g' values.yaml
+grep -n "GRAFANA-HOST\|PUT HERE" values.yaml
 helm upgrade --install grafana \
   oci://ghcr.io/grafana-community/helm-charts/grafana --version 14.0.1 \
   -n iyzitrace-grafana -f values.yaml --wait --timeout 10m
 kubectl -n iyzitrace-grafana get pods
 ```
 
-One pod, `1/1 Running`. It may restart once on its first start while it downloads the plugins; that is normal.
+The `grep` line must print nothing. Then one pod, `1/1 Running`. It may restart once on its first start while it downloads the plugins; that is normal.
 Open `https://<Grafana host>` and log in as `admin` with the password you chose. Under Administration → Plugins,
 **IyziTrace** is enabled.
 
