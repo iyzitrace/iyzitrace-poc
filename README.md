@@ -103,9 +103,12 @@ oc adm policy add-scc-to-group nonroot-v2 system:serviceaccounts:iyzitrace
 
 ## 5. Install the operators
 
+`--devel` (here and in steps 6 and 8) means: use the newest chart we have published. The charts are pre-release
+versions, which Helm skips without it. `helm list -A` shows the version you got.
+
 ```bash
 helm upgrade --install iyzitrace-operators \
-  oci://ghcr.io/iyzitrace/charts/iyzitrace-operators --version 0.1.0-dev.0d769a0 \
+  oci://ghcr.io/iyzitrace/charts/iyzitrace-operators --devel \
   -n iyzitrace-system -f values.yaml --wait --timeout 10m
 kubectl -n iyzitrace-system get pods
 ```
@@ -116,7 +119,7 @@ Two pods running: `otel-operator-...` and `seaweedfs-operator-...`.
 
 ```bash
 helm upgrade --install iyzitrace-storage \
-  oci://ghcr.io/iyzitrace/charts/iyzitrace-storage --version 0.1.0-dev.0d769a0 \
+  oci://ghcr.io/iyzitrace/charts/iyzitrace-storage --devel \
   -n iyzitrace -f values.yaml --wait --timeout 10m
 kubectl -n iyzitrace wait bucket --all --for=jsonpath='{.status.phase}'=Ready --timeout=5m
 ```
@@ -146,7 +149,7 @@ The Route answers 503 until step 8 is done.
 
 ```bash
 helm upgrade --install iyzitrace \
-  oci://ghcr.io/iyzitrace/charts/iyzitrace-platform --version 1.3.1-dev.0d769a0 \
+  oci://ghcr.io/iyzitrace/charts/iyzitrace-platform --devel \
   -n iyzitrace -f values.yaml --wait --timeout 20m
 kubectl -n iyzitrace get pods
 ```
