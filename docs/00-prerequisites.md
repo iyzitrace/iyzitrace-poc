@@ -22,7 +22,7 @@ The cluster must be able to pull these images, directly or from a mirror:
 
 | Registry | Images |
 |---|---|
-| ghcr.io | `iyzitrace/auth-service:dev-c44dd8f`, `iyzitrace/opamp:dev-c44dd8f`, `iyzitrace/inventory-service:dev-c44dd8f`, `iyzitrace/query-guard:dev-c44dd8f`, `iyzitrace/holmes:dev-c44dd8f`, `iyzitrace/thanos:v0.42.4-iyz.1`, `open-telemetry/opentelemetry-operator/opentelemetry-operator:0.144.0` |
+| ghcr.io | `iyzitrace/auth-service:dev-72f53ed`, `iyzitrace/opamp:dev-72f53ed`, `iyzitrace/inventory-service:dev-72f53ed`, `iyzitrace/query-guard:dev-72f53ed`, `iyzitrace/holmes:dev-72f53ed`, `iyzitrace/thanos:v0.42.4-iyz.1`, `open-telemetry/opentelemetry-operator/opentelemetry-operator:0.144.0` |
 | docker.io | `grafana/loki:3.7.8`, `grafana/tempo:2.10.7`, `nginx:1.30.4-alpine`, `otel/opentelemetry-collector-contrib:0.159.0`, `chrislusf/seaweedfs:4.44`, `chrislusf/seaweedfs-operator:1.0.39`, `curlimages/curl:8.8.0`, `busybox` (only `helm test` of the operators and, on plain Kubernetes, the kit's Grafana), and `grafana/grafana:13.1.1` if you install the kit's Grafana |
 | quay.io | `prometheus/alertmanager:v0.34.0`, `prometheus-operator/prometheus-config-reloader:v0.93.1`, `brancz/kube-rbac-proxy:v0.20.0`, and the cert-manager images (`jetstack/cert-manager-controller`, `-cainjector`, `-webhook`, `-startupapicheck`, v1.17.2) if you install cert-manager as in step 1 |
 
@@ -32,7 +32,7 @@ addresses and see "Before you start" in [platform/kubernetes/README.md](../platf
 To check one image from a cluster node on OpenShift:
 
 ```bash
-oc debug node/<node-name> -- chroot /host podman pull ghcr.io/iyzitrace/opamp:dev-c44dd8f
+oc debug node/<node-name> -- chroot /host podman pull ghcr.io/iyzitrace/opamp:dev-72f53ed
 ```
 
 Docker Hub limits anonymous pulls. On a busy shared cluster, ask whether a pull secret or a mirror
