@@ -333,6 +333,10 @@ thanos:
     resources:
       requests: {cpu: 25m, memory: 64Mi}
       limits: {cpu: 250m, memory: 512Mi}
+    # The chart keeps a 1GB in-memory chunk cache by default; this pod's 512Mi
+    # limit holds a 128MB one. Raise both together.
+    extraArgs:
+      - '--store.caching-bucket.config={"type":"IN-MEMORY","config":{"max_size":"128MB","max_item_size":"16MB"}}'
   compactor:
     # extraInitContainers: *waitThanos
     resources:
