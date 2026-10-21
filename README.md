@@ -50,8 +50,8 @@ are downloaded in the steps:
 
 | What | Version |
 |---|---|
-| Platform charts (`oci://ghcr.io/iyzitrace/charts`) | `iyzitrace-operators`, `iyzitrace-storage`, `iyzitrace-platform`: always the newest published (installed with `--devel`, no version) |
-| Platform images (`ghcr.io/iyzitrace`) | `dev-c44dd8f`; Thanos `v0.42.4-iyz.1` |
+| Platform charts (`oci://ghcr.io/iyzitrace/charts`) | `iyzitrace-operators`, `iyzitrace-storage`, `iyzitrace-onprem` (named `iyzitrace-platform` until 2026-10-21): always the newest published (installed with `--devel`, no version) |
+| Platform images (`ghcr.io/iyzitrace`) | `dev-72f53ed`; Thanos `v0.42.4-iyz.1` |
 | OpenTelemetry Collector (contrib) | 0.159.0 |
 | Grafana (kit): chart `grafana-community/grafana` | `14.0.1`, Grafana 13.1.1; IyziTrace plugin 1.3.1 from the `dev` branch at `de49fe9f` (release `grafana-plugin-dev.de49fe9`), Infinity 4.1.1, Plotly panel 0.5.0 |
 | OpenTelemetry Java agent | 2.21.0 |

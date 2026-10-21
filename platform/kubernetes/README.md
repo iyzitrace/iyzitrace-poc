@@ -157,10 +157,13 @@ logs. Without it they still appear in Agent Manager, but their Metrics and Logs 
 
 ```bash
 helm upgrade --install iyzitrace \
-  oci://ghcr.io/iyzitrace/charts/iyzitrace-platform --devel \
+  oci://ghcr.io/iyzitrace/charts/iyzitrace-onprem --devel \
   -n iyzitrace -f values.yaml --wait --timeout 20m
 kubectl -n iyzitrace get pods
 ```
+
+Installed before 2026-10-21, when this chart was called `iyzitrace-platform`? Run the same command:
+the release `iyzitrace` upgrades in place to the new chart name, and its data and secrets stay.
 
 The install takes about 5 to 10 minutes. At the end, all 33 pods are `Running`.
 
