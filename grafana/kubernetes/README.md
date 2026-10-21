@@ -131,6 +131,23 @@ Then, in [values.yaml](values.yaml), uncomment the `SSL_CERT_DIR` line under `en
 restarts. Run the wizard's Verify again. A Route with a certificate from a public authority needs none
 of this.
 
+## Optional: let Grafana send more queries at once (HTTP/2)
+
+Grafana's browser side sends at most five data queries at a time unless Grafana itself serves
+HTTP/2. An IyziTrace overview screen sends 30 to 48, so with a lot of data the rest wait in the
+browser. A Route or Ingress that speaks HTTP/2 to the browser does not lift this limit; only
+Grafana serving HTTP/2 does. On a platform holding about 11,000 histogram series and 31 days of
+history, with Thanos Query allowed 8 queries at a time, it opened the 7- and 30-day overview
+screens about 8% faster.
+
+The kit does not set it, because it changes three things:
+
+1. Grafana gets a certificate and serves it itself: `grafana.ini` `server.protocol: h2` with
+   `server.cert_file` and `server.cert_key` from a mounted Secret.
+2. The Route hands TLS to Grafana (`reencrypt` or `passthrough`) instead of ending it (`edge`).
+3. The platform reaches Grafana over HTTPS (`authService.grafanaUrl: https://...` in step 5) and
+   trusts that certificate.
+
 ## If something goes wrong
 
 | What you see | What to do |
