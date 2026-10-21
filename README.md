@@ -33,11 +33,11 @@ docker.io/grafana/loki:3.7.8
 docker.io/grafana/tempo:2.10.7
 docker.io/library/nginx:1.30.4-alpine
 docker.io/otel/opentelemetry-collector-contrib:0.159.0
-ghcr.io/iyzitrace/auth-service:dev-c44dd8f
-ghcr.io/iyzitrace/holmes:dev-c44dd8f
-ghcr.io/iyzitrace/inventory-service:dev-c44dd8f
-ghcr.io/iyzitrace/opamp:dev-c44dd8f
-ghcr.io/iyzitrace/query-guard:dev-c44dd8f
+ghcr.io/iyzitrace/auth-service:dev-72f53ed
+ghcr.io/iyzitrace/holmes:dev-72f53ed
+ghcr.io/iyzitrace/inventory-service:dev-72f53ed
+ghcr.io/iyzitrace/opamp:dev-72f53ed
+ghcr.io/iyzitrace/query-guard:dev-72f53ed
 ghcr.io/iyzitrace/thanos:v0.42.4-iyz.1
 ghcr.io/open-telemetry/opentelemetry-operator/opentelemetry-operator:0.144.0
 quay.io/brancz/kube-rbac-proxy:v0.20.0
@@ -149,12 +149,15 @@ The Route answers 503 until step 8 is done.
 
 ```bash
 helm upgrade --install iyzitrace \
-  oci://ghcr.io/iyzitrace/charts/iyzitrace-platform --devel \
+  oci://ghcr.io/iyzitrace/charts/iyzitrace-onprem --devel \
   -n iyzitrace -f values.yaml --wait --timeout 20m
 kubectl -n iyzitrace get pods
 ```
 
 It takes 5 to 10 minutes. At the end, all 33 pods are `Running`.
+
+Installed before 2026-10-21, when this chart was called `iyzitrace-platform`? Run the same command:
+the release `iyzitrace` upgrades in place to the new chart name, and its data and secrets stay.
 
 ## 9. Check the platform
 
