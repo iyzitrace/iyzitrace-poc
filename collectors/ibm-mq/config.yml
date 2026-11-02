@@ -2,11 +2,11 @@
 # One block per queue manager under queueManagers. Copy a block for each one and change its first
 # four lines: name, host, port and password.
 
-# Read every queue manager once a minute.
+# Read every queue manager every 30 seconds.
 taskSchedule:
   numberOfThreads: 20
   initialDelaySeconds: 0
-  taskDelaySeconds: 60
+  taskDelaySeconds: 30
 
 queueManagers:
   - name: "QM1"

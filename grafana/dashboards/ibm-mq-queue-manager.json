@@ -83,7 +83,7 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "expr": "max(max by (ibm_mq_queue_manager) (last_over_time(ibm_mq_manager_status_ratio{ibm_mq_queue_manager=\"$qmgr\"}[3m])) * on (ibm_mq_queue_manager) (max by (ibm_mq_queue_manager) (last_over_time(ibm_mq_heartbeat_ratio{ibm_mq_queue_manager=\"$qmgr\"}[3m])) > 0)) or vector(0)",
+          "expr": "max(max by (ibm_mq_queue_manager) (last_over_time(ibm_mq_manager_status_ratio{ibm_mq_queue_manager=\"$qmgr\"}[2m])) * on (ibm_mq_queue_manager) (max by (ibm_mq_queue_manager) (last_over_time(ibm_mq_heartbeat_ratio{ibm_mq_queue_manager=\"$qmgr\"}[2m])) > 0)) or vector(0)",
           "refId": "A",
           "range": false,
           "instant": true
@@ -343,7 +343,7 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "expr": "count(last_over_time(ibm_mq_status_ratio{ibm_mq_queue_manager=\"$qmgr\", ibm_mq_channel_type!=\"server-connection\"}[3m]) != 3) or vector(0)",
+          "expr": "count(last_over_time(ibm_mq_status_ratio{ibm_mq_queue_manager=\"$qmgr\", ibm_mq_channel_type!=\"server-connection\"}[2m]) != 3) or vector(0)",
           "refId": "A",
           "range": false,
           "instant": true
@@ -783,7 +783,7 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "expr": "max by (ibm_mq_queue_manager, ibm_mq_channel_name, ibm_mq_channel_type) (last_over_time(ibm_mq_status_ratio{ibm_mq_queue_manager=\"$qmgr\", ibm_mq_channel_type!=\"server-connection\"}[3m]))",
+          "expr": "max by (ibm_mq_queue_manager, ibm_mq_channel_name, ibm_mq_channel_type) (last_over_time(ibm_mq_status_ratio{ibm_mq_queue_manager=\"$qmgr\", ibm_mq_channel_type!=\"server-connection\"}[2m]))",
           "refId": "A",
           "range": false,
           "instant": true,
@@ -985,7 +985,7 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "expr": "count by (ibm_mq_queue_manager, ibm_mq_channel_name) (last_over_time(ibm_mq_status_ratio{ibm_mq_queue_manager=\"$qmgr\", ibm_mq_channel_type=\"server-connection\"}[3m]))",
+          "expr": "count by (ibm_mq_queue_manager, ibm_mq_channel_name) (last_over_time(ibm_mq_status_ratio{ibm_mq_queue_manager=\"$qmgr\", ibm_mq_channel_type=\"server-connection\"}[2m]))",
           "refId": "A",
           "range": false,
           "instant": true,
@@ -1097,7 +1097,7 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "expr": "max by (ibm_mq_channel_name) (last_over_time(ibm_mq_status_ratio{ibm_mq_queue_manager=\"$qmgr\", ibm_mq_channel_type!=\"server-connection\"}[3m]))",
+          "expr": "max by (ibm_mq_channel_name) (last_over_time(ibm_mq_status_ratio{ibm_mq_queue_manager=\"$qmgr\", ibm_mq_channel_type!=\"server-connection\"}[2m]))",
           "refId": "A",
           "range": true,
           "instant": false,

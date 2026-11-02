@@ -1,25 +1,33 @@
-* Read-only authorities for IyziTrace's IBM MQ metrics container, for one queue manager.
+* Authorities of IyziTrace's IBM MQ metrics container, for one queue manager.
 * Run on each queue manager as an MQ administrator:
 *   runmqsc QMNAME < monitor-authorities.mqsc
 * The operating-system group iyzmon, and a user in it, must exist on the queue manager's host first
-* (docs/07-ibm-mq.md, step 1). Nothing here allows reading, writing or removing an application's
-* messages: on application queues the group gets display and inquire only.
+* (docs/07-ibm-mq.md, step 1). Nothing here allows reading, putting or removing an application's
+* messages.
 *
-* Keep it read-only. The container also asks to reset queue statistics and reads the queue manager's
-* event queues (SYSTEM.ADMIN.*.EVENT), which removes the events it reads. With these authorities
-* the queue manager refuses both (reason 2035): no statistics are reset, no events are removed.
+* Besides DISPLAY commands, the container resets every queue's statistics (RESET QSTATS) and reads
+* the queue manager's event queues, which removes the events it reads. Another tool that reads the
+* same statistics or events gets only part of them.
 
 * Connect, and read the queue manager's attributes and status.
 SET AUTHREC OBJTYPE(QMGR) GROUP('iyzmon') AUTHADD(CONNECT, INQ, DSP)
 
-* Send DISPLAY commands to the command server (PCF) and receive the answers on a temporary queue
-* made from the model queue.
-SET AUTHREC PROFILE('SYSTEM.ADMIN.COMMAND.QUEUE') OBJTYPE(QUEUE) GROUP('iyzmon') AUTHADD(PUT, INQ, DSP)
+* Send commands to the command server (PCF) and receive the answers on a temporary queue made from
+* the model queue. A queue's own profile replaces '**' below, so it repeats CHG for RESET QSTATS.
+SET AUTHREC PROFILE('SYSTEM.ADMIN.COMMAND.QUEUE') OBJTYPE(QUEUE) GROUP('iyzmon') AUTHADD(PUT, INQ, DSP, CHG)
 SET AUTHREC PROFILE('SYSTEM.DEFAULT.MODEL.QUEUE') OBJTYPE(QUEUE) GROUP('iyzmon') AUTHADD(GET, INQ, DSP)
 
-* Status of every queue (depth, oldest message, time on queue) and every channel.
-SET AUTHREC PROFILE('**') OBJTYPE(QUEUE) GROUP('iyzmon') AUTHADD(INQ, DSP)
+* Status of every queue (depth, oldest message, time on queue). RESET QSTATS needs chg, and IBM MQ
+* has no narrower authority for it; chg also allows changing a queue's attributes. The queue manager
+* still refuses it on SYSTEM.AUTH.DATA.QUEUE, which only mqm may use: one AMQ8077W per round.
+SET AUTHREC PROFILE('**') OBJTYPE(QUEUE) GROUP('iyzmon') AUTHADD(INQ, DSP, CHG)
+
+* The event queues the container reads, with CHG again for RESET QSTATS.
+SET AUTHREC PROFILE('SYSTEM.ADMIN.CONFIG.EVENT') OBJTYPE(QUEUE) GROUP('iyzmon') AUTHADD(GET, BROWSE, INQ, DSP, CHG)
+SET AUTHREC PROFILE('SYSTEM.ADMIN.PERFM.EVENT') OBJTYPE(QUEUE) GROUP('iyzmon') AUTHADD(GET, BROWSE, INQ, DSP, CHG)
+SET AUTHREC PROFILE('SYSTEM.ADMIN.QMGR.EVENT') OBJTYPE(QUEUE) GROUP('iyzmon') AUTHADD(GET, BROWSE, INQ, DSP, CHG)
+
+* Status of every channel. Client-connection channels are a separate object type; without this,
+* every channel inquiry logs AMQ8245W for them.
 SET AUTHREC PROFILE('**') OBJTYPE(CHANNEL) GROUP('iyzmon') AUTHADD(DSP)
-* Client-connection channels are a separate object type; without this, every channel inquiry logs
-* AMQ8245W for them.
 SET AUTHREC PROFILE('**') OBJTYPE(CLNTCONN) GROUP('iyzmon') AUTHADD(DSP)

@@ -19,5 +19,5 @@ SET AUTHREC PROFILE('SYSTEM.DEAD.LETTER.QUEUE') PRINCIPAL('app') OBJTYPE(QUEUE) 
 * The monitoring channel. Lab only: a connection on it runs as iyzmon without a password, because
 * the developer image checks passwords for app and admin only. At the customer the channel asks for
 * iyzmon's password (docs/07-ibm-mq.md, step 1).
-DEFINE CHANNEL('IYZI.MON.SVRCONN') CHLTYPE(SVRCONN) TRPTYPE(TCP) DESCR('IyziTrace read-only monitoring') REPLACE
+DEFINE CHANNEL('IYZI.MON.SVRCONN') CHLTYPE(SVRCONN) TRPTYPE(TCP) DESCR('IyziTrace monitoring') REPLACE
 SET CHLAUTH('IYZI.MON.SVRCONN') TYPE(ADDRESSMAP) ADDRESS('*') USERSRC(MAP) MCAUSER('iyzmon') CHCKCLNT(ASQMGR) DESCR('Lab: monitoring as iyzmon') ACTION(REPLACE)

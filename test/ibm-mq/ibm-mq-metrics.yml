@@ -1,11 +1,11 @@
 # The lab's copy of collectors/ibm-mq/config.yml: the same file with the lab's values. The lab's
 # monitoring channel maps to iyzmon without a password, so no username and password lines.
 
-# Read every queue manager once a minute.
+# Read every queue manager every 30 seconds.
 taskSchedule:
   numberOfThreads: 20
   initialDelaySeconds: 0
-  taskDelaySeconds: 60
+  taskDelaySeconds: 30
 
 queueManagers:
   - name: "QM1"
