@@ -1,5 +1,5 @@
-# The IBM MQ lab: two queue managers and one Linux machine with WildFly, the collector and mq_otel,
-# sending to a running IyziTrace. See README.md in this folder.
+# The IBM MQ lab: two queue managers, one Linux machine with WildFly and the collector, and the IBM MQ
+# metrics container next to it, sending to a running IyziTrace. See README.md in this folder.
 name: iyzitrace-ibm-mq-lab
 
 services:
@@ -43,6 +43,19 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
     depends_on: [qm1, qm2]
+
+  # docs/07-ibm-mq.md: the image built from collectors/ibm-mq/Dockerfile with one config file. It
+  # shares the Linux machine's network, as `docker run --network host` does there, so 127.0.0.1:4317
+  # is that machine's collector.
+  ibm-mq-metrics:
+    build:
+      context: ../../collectors/ibm-mq
+    image: iyzitrace-poc-ibm-mq-metrics
+    network_mode: "service:host"
+    restart: unless-stopped
+    volumes:
+      - ./ibm-mq-metrics.yml:/etc/ibm-mq-metrics/config.yml:ro
+    depends_on: [host]
 
 secrets:
   mqAppPassword:

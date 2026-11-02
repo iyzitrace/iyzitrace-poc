@@ -4,8 +4,8 @@ COPY test/ibm-mq/apps /apps
 RUN cd /apps && mvn -q -B package
 
 # A stand-in for the customer's Linux machine: Rocky Linux 8.10 (RHEL 8.10-compatible), Java 21 and
-# WildFly 41 with the two applications, so the collector, the Java agent and mq_otel are set up
-# exactly as docs/03, docs/04 and docs/07 say.
+# WildFly 41 with the two applications, so the collector and the Java agent are set up exactly as
+# docs/03 and docs/04 say.
 FROM rockylinux/rockylinux:8.10
 RUN dnf -y install java-21-openjdk-headless procps-ng tar gzip findutils hostname && dnf clean all
 ARG WILDFLY_VERSION=41.0.1.Final

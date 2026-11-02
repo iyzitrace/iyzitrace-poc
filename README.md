@@ -31,7 +31,7 @@ Other platforms and languages will be added the same way.
    and the plugin in Grafana
 4. [Collector on each Linux machine](docs/03-linux-collector.md)
 5. [Java agent on each Java server](docs/04-java-agent.md)
-6. [IBM MQ runbook](docs/07-ibm-mq.md), when the applications use IBM MQ
+6. [IBM MQ](docs/07-ibm-mq.md), when the applications use IBM MQ
 7. [Check that everything works](docs/05-verify.md)
 8. [When something does not work](docs/06-troubleshooting.md)
 
@@ -47,7 +47,7 @@ are downloaded in the steps:
 | [collectors/linux-host/otelcol-contrib.conf.example](collectors/linux-host/otelcol-contrib.conf.example) | the values that differ per machine: address, key, name |
 | [instrumentation/java/otel-agent.properties](instrumentation/java/otel-agent.properties) | the Java agent's settings |
 | [collectors/ibm-mq/monitor-authorities.mqsc](collectors/ibm-mq/monitor-authorities.mqsc), [remove-monitor-authorities.mqsc](collectors/ibm-mq/remove-monitor-authorities.mqsc) | the read-only authorities of the IBM MQ monitoring user on each queue manager, and their removal |
-| [collectors/ibm-mq/mq_otel.yaml](collectors/ibm-mq/mq_otel.yaml), [qm.env.example](collectors/ibm-mq/qm.env.example), [mq_otel@.service](collectors/ibm-mq/mq_otel@.service) | IBM's MQ exporter: its settings (the same for every queue manager), the values per queue manager, and its systemd service |
+| [collectors/ibm-mq/Dockerfile](collectors/ibm-mq/Dockerfile), [config.yml](collectors/ibm-mq/config.yml) | the IBM MQ metrics container and its one file, which lists every queue manager |
 | [grafana/dashboards/ibm-mq-overview.json](grafana/dashboards/ibm-mq-overview.json), [ibm-mq-queue-manager.json](grafana/dashboards/ibm-mq-queue-manager.json), [ibm-mq-queue.json](grafana/dashboards/ibm-mq-queue.json) | the IBM MQ dashboards: every queue manager, one queue manager, one queue |
 
 ## Versions
@@ -60,9 +60,9 @@ are downloaded in the steps:
 | Grafana (kit): chart `grafana-community/grafana` | `14.0.1`, Grafana 13.1.1; IyziTrace plugin 1.3.1 from the `dev` branch at `de49fe9f` (release `grafana-plugin-dev.de49fe9`), Infinity 4.1.1, Plotly panel 0.5.0 |
 | OpenTelemetry Java agent | 2.21.0 |
 | iyzitrace appserver-deployment extension | 0.1.0 ([source](https://github.com/antreklabs/iyzitrace-otel-java-extensions)) |
-| IBM MQ exporter mq_otel ([mq-metric-samples](https://github.com/ibm-messaging/mq-metric-samples)) | v6.0.1 |
-| IBM MQ redistributable client | 10.0.1.0 |
-| iyzitrace ibm-mq extension | 0.2.0 ([source](https://github.com/antreklabs/iyzitrace-otel-java-extensions)) |
+| OpenTelemetry [ibm-mq-metrics](https://github.com/open-telemetry/opentelemetry-java-contrib/tree/main/ibm-mq-metrics) | 1.61.0-alpha |
+| IBM MQ Java client (`com.ibm.mq.allclient`) | 10.0.0.5 |
+| IBM MQ metrics container base image | `eclipse-temurin:21-jre`, pinned by digest |
 
 ## What was tested
 
@@ -82,12 +82,12 @@ restarted or killed for memory.
 On 2026-11-02, [docs/07-ibm-mq.md](docs/07-ibm-mq.md) on a Rocky Linux 8.10 machine with WildFly 41
 and two applications carrying the IBM MQ JMS client 9.4.1.0, against two IBM MQ 9.4.5.1 developer
 queue managers joined by a sender and receiver channel ([test/ibm-mq](test/ibm-mq/README.md)).
-mq_otel ran with only the authorities of `monitor-authorities.mqsc`, and the queue managers logged no
-authority error. Every query of the dashboard returned data through Grafana. With the IBM MQ
-extension, every send, receive and process span carried its own queue manager's address, IyziTrace
-showed the two queue managers as two brokers, and both became monitored from mq_otel's metrics. Not covered there: the
-monitoring channel with a password (the developer image checks passwords only for its own users)
-and queue managers of version 9.2.
+The IBM MQ metrics container read both queue managers with only the authorities of
+`monitor-authorities.mqsc`; the queue managers refused its statistics reset and event queue reads
+(reason 2035), so nothing was reset or removed. Every query of the three dashboards returned data
+through Grafana, depths and oldest-message ages matched `runmqsc`, and a stopped queue manager
+showed as Not reporting. Not covered there: the monitoring channel with a password (the developer
+image checks passwords only for its own users) and queue managers of version 9.2.
 
 Details are at the end of the [platform guide](platform/kubernetes/README.md#what-was-tested-before-the-first-openshift-poc),
 and the Linux test is in [test/linux-java-host](test/linux-java-host/README.md).
