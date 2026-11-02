@@ -1,7 +1,7 @@
 {
   "uid": "iyzitrace-ibm-mq",
-  "title": "IBM MQ",
-  "description": "IBM MQ queue managers, queues, dead-letter queues and channels, from mq_otel (iyzitrace-poc docs/07-ibm-mq.md).",
+  "title": "IBM MQ - Overview",
+  "description": "Every queue manager at a glance: what needs attention now, status, deepest queues, oldest messages and channels. From mq_otel (iyzitrace-poc docs/07-ibm-mq.md).",
   "tags": [
     "iyzitrace",
     "ibm-mq"
@@ -15,6 +15,19 @@
   "schemaVersion": 39,
   "editable": true,
   "graphTooltip": 1,
+  "links": [
+    {
+      "type": "dashboards",
+      "tags": [
+        "ibm-mq"
+      ],
+      "asDropdown": false,
+      "includeVars": false,
+      "keepTime": true,
+      "title": "IBM MQ",
+      "icon": "external link"
+    }
+  ],
   "templating": {
     "list": [
       {
@@ -39,32 +52,10 @@
           "refId": "qmgr"
         },
         "refresh": 2,
+        "sort": 1,
         "multi": true,
         "includeAll": true,
         "allValue": ".*",
-        "sort": 1,
-        "current": {
-          "text": "All",
-          "value": "$__all"
-        }
-      },
-      {
-        "name": "queue",
-        "label": "Queue",
-        "type": "query",
-        "datasource": {
-          "type": "prometheus",
-          "uid": "${ds}"
-        },
-        "query": {
-          "query": "label_values(ibmmq_queue_depth_ratio{qmgr=~\"$qmgr\"}, queue)",
-          "refId": "queue"
-        },
-        "refresh": 2,
-        "multi": true,
-        "includeAll": true,
-        "allValue": ".*",
-        "sort": 1,
         "current": {
           "text": "All",
           "value": "$__all"
@@ -84,32 +75,25 @@
   },
   "panels": [
     {
-      "id": 1,
       "type": "row",
-      "title": "Queue managers",
+      "title": "Needs attention now",
       "collapsed": false,
+      "panels": [],
+      "id": 1,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
         "y": 0
-      },
-      "panels": []
+      }
     },
     {
-      "id": 2,
       "type": "stat",
       "title": "Not running",
       "description": "Queue managers that report a status other than Running.",
       "datasource": {
         "type": "prometheus",
         "uid": "${ds}"
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 0,
-        "y": 1
       },
       "targets": [
         {
@@ -133,12 +117,12 @@
         },
         "colorMode": "background",
         "graphMode": "none",
-        "textMode": "value"
+        "textMode": "value",
+        "justifyMode": "center"
       },
       "fieldConfig": {
         "defaults": {
           "unit": "none",
-          "decimals": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -151,25 +135,26 @@
                 "value": 1
               }
             ]
-          }
+          },
+          "decimals": 0
         },
         "overrides": []
+      },
+      "id": 2,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 1
       }
     },
     {
-      "id": 3,
       "type": "stat",
       "title": "Not reporting",
-      "description": "Queue managers seen in the last hour that send no metrics now: the queue manager, its listener or its mq_otel is down.",
+      "description": "Seen in the last hour, no metrics now: the queue manager, its listener or its mq_otel is down.",
       "datasource": {
         "type": "prometheus",
         "uid": "${ds}"
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 6,
-        "y": 1
       },
       "targets": [
         {
@@ -193,12 +178,12 @@
         },
         "colorMode": "background",
         "graphMode": "none",
-        "textMode": "value"
+        "textMode": "value",
+        "justifyMode": "center"
       },
       "fieldConfig": {
         "defaults": {
           "unit": "none",
-          "decimals": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -211,25 +196,26 @@
                 "value": 1
               }
             ]
-          }
+          },
+          "decimals": 0
         },
         "overrides": []
+      },
+      "id": 3,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 1
       }
     },
     {
-      "id": 4,
       "type": "stat",
-      "title": "Channels not running",
+      "title": "Channels down",
       "description": "Channels between queue managers that are stopped, retrying or starting.",
       "datasource": {
         "type": "prometheus",
         "uid": "${ds}"
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 12,
-        "y": 1
       },
       "targets": [
         {
@@ -253,12 +239,12 @@
         },
         "colorMode": "background",
         "graphMode": "none",
-        "textMode": "value"
+        "textMode": "value",
+        "justifyMode": "center"
       },
       "fieldConfig": {
         "defaults": {
           "unit": "none",
-          "decimals": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -271,25 +257,26 @@
                 "value": 1
               }
             ]
-          }
+          },
+          "decimals": 0
         },
         "overrides": []
+      },
+      "id": 4,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 1
       }
     },
     {
-      "id": 5,
       "type": "stat",
-      "title": "Messages on dead-letter queues",
+      "title": "On dead-letter queues",
       "description": "Messages waiting on the dead-letter queue ($dlq) of the selected queue managers.",
       "datasource": {
         "type": "prometheus",
         "uid": "${ds}"
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 18,
-        "y": 1
       },
       "targets": [
         {
@@ -313,12 +300,12 @@
         },
         "colorMode": "background",
         "graphMode": "none",
-        "textMode": "value"
+        "textMode": "value",
+        "justifyMode": "center"
       },
       "fieldConfig": {
         "defaults": {
           "unit": "none",
-          "decimals": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -331,25 +318,161 @@
                 "value": 1
               }
             ]
-          }
+          },
+          "decimals": 0
         },
         "overrides": []
+      },
+      "id": 5,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 1
       }
     },
     {
-      "id": 6,
-      "type": "table",
-      "title": "Queue managers",
-      "description": "One row per queue manager; a queue manager that stopped reporting in the last hour shows as Not reporting.",
+      "type": "stat",
+      "title": "Queues > 80% full",
+      "description": "Queues whose depth is above 80% of their MAXDEPTH: puts fail when one is full.",
       "datasource": {
         "type": "prometheus",
         "uid": "${ds}"
       },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds}"
+          },
+          "expr": "count(ibmmq_queue_depth_ratio{qmgr=~\"$qmgr\"} / ibmmq_queue_attribute_max_depth_ratio{qmgr=~\"$qmgr\"} > 0.8) or vector(0)",
+          "refId": "A",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "id": 6,
       "gridPos": {
-        "h": 7,
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Messages > 5 min old",
+      "description": "Queues, apart from the dead-letter queue, whose oldest message waits longer than 5 minutes: nobody reads them, or not fast enough.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds}"
+          },
+          "expr": "count(ibmmq_queue_oldest_message_age_ratio{qmgr=~\"$qmgr\", queue!=\"$dlq\"} > 300) or vector(0)",
+          "refId": "A",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "id": 7,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      }
+    },
+    {
+      "type": "row",
+      "title": "Queue managers",
+      "collapsed": false,
+      "panels": [],
+      "id": 8,
+      "gridPos": {
+        "h": 1,
         "w": 24,
         "x": 0,
         "y": 5
+      }
+    },
+    {
+      "type": "table",
+      "title": "Queue managers",
+      "description": "One row per queue manager; click a name for its own dashboard. A queue manager that stopped sending metrics in the last hour shows as Not reporting.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds}"
       },
       "targets": [
         {
@@ -368,7 +491,7 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "expr": "max by (qmgr) (ibmmq_qmgr_command_server_status_ratio{qmgr=~\"$qmgr\"})",
+          "expr": "max by (qmgr) (last_over_time(ibmmq_qmgr_command_server_status_ratio{qmgr=~\"$qmgr\"}[90s]))",
           "refId": "B",
           "range": false,
           "instant": true,
@@ -379,7 +502,7 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "expr": "max by (qmgr) (ibmmq_qmgr_channel_initiator_status_ratio{qmgr=~\"$qmgr\"})",
+          "expr": "max by (qmgr) (last_over_time(ibmmq_qmgr_channel_initiator_status_ratio{qmgr=~\"$qmgr\"}[90s]))",
           "refId": "C",
           "range": false,
           "instant": true,
@@ -390,7 +513,7 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "expr": "max by (qmgr) (ibmmq_qmgr_connection_count_ratio{qmgr=~\"$qmgr\"})",
+          "expr": "count by (qmgr) (last_over_time(ibmmq_channel_status_squash_ratio{qmgr=~\"$qmgr\", type!=\"SVRCONN\"}[90s]) < 2) or max by (qmgr) (last_over_time(ibmmq_qmgr_status_ratio{qmgr=~\"$qmgr\"}[90s])) * 0",
           "refId": "D",
           "range": false,
           "instant": true,
@@ -401,7 +524,7 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "expr": "sum by (qmgr) (rate(ibmmq_qmgr_interval_mqput_mqput1_count_total{qmgr=~\"$qmgr\"}[5m]))",
+          "expr": "max by (qmgr) (ibmmq_queue_depth_ratio{qmgr=~\"$qmgr\", queue=\"$dlq\"}) or max by (qmgr) (last_over_time(ibmmq_qmgr_status_ratio{qmgr=~\"$qmgr\"}[90s])) * 0",
           "refId": "E",
           "range": false,
           "instant": true,
@@ -412,7 +535,7 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "expr": "sum by (qmgr) (rate(ibmmq_qmgr_interval_destructive_get_count_total{qmgr=~\"$qmgr\"}[5m]))",
+          "expr": "max by (qmgr) (ibmmq_queue_oldest_message_age_ratio{qmgr=~\"$qmgr\", queue!=\"$dlq\"})",
           "refId": "F",
           "range": false,
           "instant": true,
@@ -423,7 +546,7 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "expr": "max by (qmgr) (ibmmq_queue_depth_ratio{qmgr=~\"$qmgr\", queue=\"$dlq\"})",
+          "expr": "max by (qmgr) (ibmmq_qmgr_connection_count_ratio{qmgr=~\"$qmgr\"})",
           "refId": "G",
           "range": false,
           "instant": true,
@@ -434,7 +557,7 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "expr": "max by (qmgr) (ibmmq_qmgr_queue_manager_file_system_free_space_percentage_ratio{qmgr=~\"$qmgr\"})",
+          "expr": "sum by (qmgr) (rate(ibmmq_qmgr_interval_mqput_mqput1_count_total{qmgr=~\"$qmgr\"}[5m]))",
           "refId": "H",
           "range": false,
           "instant": true,
@@ -445,8 +568,30 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "expr": "max by (qmgr) (ibmmq_qmgr_mq_fdc_file_count_ratio{qmgr=~\"$qmgr\"})",
+          "expr": "sum by (qmgr) (rate(ibmmq_qmgr_interval_destructive_get_count_total{qmgr=~\"$qmgr\"}[5m]))",
           "refId": "I",
+          "range": false,
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds}"
+          },
+          "expr": "max by (qmgr) (ibmmq_qmgr_user_cpu_time_percentage_ratio{qmgr=~\"$qmgr\"} + ibmmq_qmgr_system_cpu_time_percentage_ratio{qmgr=~\"$qmgr\"})",
+          "refId": "J",
+          "range": false,
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds}"
+          },
+          "expr": "min by (qmgr) (ibmmq_qmgr_queue_manager_file_system_free_space_percentage_ratio{qmgr=~\"$qmgr\"})",
+          "refId": "K",
           "range": false,
           "instant": true,
           "format": "table"
@@ -473,19 +618,22 @@
               "Value #F": 6,
               "Value #G": 7,
               "Value #H": 8,
-              "Value #I": 9
+              "Value #I": 9,
+              "Value #J": 10,
+              "Value #K": 11
             },
             "renameByName": {
-              "qmgr": "qmgr",
               "Value #A": "Status",
-              "Value #B": "Command server",
-              "Value #C": "Channel initiator",
-              "Value #D": "Connections",
-              "Value #E": "Puts /s",
-              "Value #F": "Gets /s",
-              "Value #G": "Dead-letter queue",
-              "Value #H": "Data disk free",
-              "Value #I": "FDC files"
+              "Value #B": "Cmd server",
+              "Value #C": "Chl initiator",
+              "Value #D": "Channels down",
+              "Value #E": "Dead letters",
+              "Value #F": "Oldest msg",
+              "Value #G": "Connections",
+              "Value #H": "Puts /s",
+              "Value #I": "Gets /s",
+              "Value #J": "CPU",
+              "Value #K": "Disk free"
             }
           }
         },
@@ -495,7 +643,7 @@
             "sort": [
               {
                 "field": "Status",
-                "desc": true
+                "desc": false
               }
             ]
           }
@@ -509,7 +657,8 @@
         "defaults": {
           "custom": {
             "align": "auto",
-            "filterable": true
+            "filterable": true,
+            "minWidth": 70
           }
         },
         "overrides": [
@@ -519,10 +668,6 @@
               "options": "Status"
             },
             "properties": [
-              {
-                "id": "displayName",
-                "value": "Status"
-              },
               {
                 "id": "mappings",
                 "value": [
@@ -569,13 +714,9 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Command server"
+              "options": "Cmd server"
             },
             "properties": [
-              {
-                "id": "displayName",
-                "value": "Command server"
-              },
               {
                 "id": "mappings",
                 "value": [
@@ -622,13 +763,9 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Channel initiator"
+              "options": "Chl initiator"
             },
             "properties": [
-              {
-                "id": "displayName",
-                "value": "Channel initiator"
-              },
               {
                 "id": "mappings",
                 "value": [
@@ -675,57 +812,9 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Connections"
+              "options": "Channels down"
             },
             "properties": [
-              {
-                "id": "displayName",
-                "value": "Connections"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Puts /s"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "Puts /s"
-              },
-              {
-                "id": "unit",
-                "value": "short"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Gets /s"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "Gets /s"
-              },
-              {
-                "id": "unit",
-                "value": "short"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Dead-letter queue"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "Dead-letter queue"
-              },
               {
                 "id": "thresholds",
                 "value": {
@@ -753,16 +842,139 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Data disk free"
+              "options": "Dead letters"
             },
             "properties": [
               {
-                "id": "displayName",
-                "value": "Data disk free"
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
               },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Oldest msg"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 60
+                    },
+                    {
+                      "color": "red",
+                      "value": 300
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Connections"
+            },
+            "properties": []
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Puts /s"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Gets /s"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CPU"
+            },
+            "properties": [
               {
                 "id": "unit",
                 "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Disk free"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 0
               },
               {
                 "id": "thresholds",
@@ -795,67 +1007,41 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "FDC files"
+              "options": "qmgr"
             },
             "properties": [
               {
                 "id": "displayName",
-                "value": "FDC files"
+                "value": "Queue manager"
               },
               {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "orange",
-                      "value": 1
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "color-text"
-                }
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Queue manager",
+                    "url": "/d/iyzitrace-ibm-mq-qmgr/ibm-mq-queue-manager?var-ds=${ds}&var-qmgr=${__data.fields.qmgr}&${__url_time_range}"
+                  }
+                ]
               }
             ]
           }
         ]
+      },
+      "id": 9,
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 6
       }
     },
     {
-      "id": 7,
-      "type": "row",
-      "title": "Queues",
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 12
-      },
-      "panels": []
-    },
-    {
-      "id": 8,
-      "type": "table",
-      "title": "Queues",
-      "description": "The selected queues, deepest first. Full = depth as a share of the queue's MAXDEPTH. Oldest message and last get need queue monitoring (MONQ) on the queue manager.",
+      "type": "state-timeline",
+      "title": "Status history",
+      "description": "Each queue manager's status over the time range; red where it was down or sent nothing.",
       "datasource": {
         "type": "prometheus",
         "uid": "${ds}"
-      },
-      "gridPos": {
-        "h": 9,
-        "w": 24,
-        "x": 0,
-        "y": 13
       },
       "targets": [
         {
@@ -863,7 +1049,126 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "expr": "max by (qmgr, queue) (ibmmq_queue_depth_ratio{qmgr=~\"$qmgr\", queue=~\"$queue\"})",
+          "expr": "max by (qmgr) (last_over_time(ibmmq_qmgr_status_ratio{qmgr=~\"$qmgr\"}[90s])) or max by (qmgr) (last_over_time(ibmmq_qmgr_status_ratio{qmgr=~\"$qmgr\"}[1h]) * 0)",
+          "refId": "A",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{qmgr}}"
+        }
+      ],
+      "options": {
+        "mergeValues": true,
+        "showValue": "never",
+        "alignValue": "left",
+        "rowHeight": 0.8,
+        "legend": {
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Not reporting",
+                  "color": "red",
+                  "index": 0
+                },
+                "1": {
+                  "text": "Starting",
+                  "color": "orange",
+                  "index": 1
+                },
+                "2": {
+                  "text": "Running",
+                  "color": "green",
+                  "index": 2
+                },
+                "3": {
+                  "text": "Quiescing",
+                  "color": "orange",
+                  "index": 3
+                },
+                "4": {
+                  "text": "Standby",
+                  "color": "blue",
+                  "index": 4
+                }
+              }
+            }
+          ],
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "green",
+                "value": 2
+              },
+              {
+                "color": "orange",
+                "value": 3
+              },
+              {
+                "color": "blue",
+                "value": 4
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "id": 10,
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 16
+      }
+    },
+    {
+      "type": "row",
+      "title": "Queues to look at",
+      "collapsed": false,
+      "panels": [],
+      "id": 11,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 22
+      }
+    },
+    {
+      "type": "table",
+      "title": "Deepest queues",
+      "description": "The 15 queues with the most messages, empty ones left out; click one for its dashboard.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds}"
+          },
+          "expr": "topk(15, max by (qmgr, queue) (ibmmq_queue_depth_ratio{qmgr=~\"$qmgr\"}) > 0)",
           "refId": "A",
           "range": false,
           "instant": true,
@@ -874,7 +1179,7 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "expr": "max by (qmgr, queue) (ibmmq_queue_depth_ratio{qmgr=~\"$qmgr\", queue=~\"$queue\"}) / max by (qmgr, queue) (ibmmq_queue_attribute_max_depth_ratio{qmgr=~\"$qmgr\", queue=~\"$queue\"}) * 100",
+          "expr": "(max by (qmgr, queue) (ibmmq_queue_depth_ratio{qmgr=~\"$qmgr\"}) / max by (qmgr, queue) (ibmmq_queue_attribute_max_depth_ratio{qmgr=~\"$qmgr\"}) * 100) and on (qmgr, queue) topk(15, max by (qmgr, queue) (ibmmq_queue_depth_ratio{qmgr=~\"$qmgr\"}) > 0)",
           "refId": "B",
           "range": false,
           "instant": true,
@@ -885,7 +1190,7 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "expr": "max by (qmgr, queue) (ibmmq_queue_oldest_message_age_ratio{qmgr=~\"$qmgr\", queue=~\"$queue\"})",
+          "expr": "max by (qmgr, queue) (ibmmq_queue_oldest_message_age_ratio{qmgr=~\"$qmgr\"}) and on (qmgr, queue) topk(15, max by (qmgr, queue) (ibmmq_queue_depth_ratio{qmgr=~\"$qmgr\"}) > 0)",
           "refId": "C",
           "range": false,
           "instant": true,
@@ -896,41 +1201,8 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "expr": "max by (qmgr, queue) (ibmmq_queue_time_since_get_ratio{qmgr=~\"$qmgr\", queue=~\"$queue\"})",
+          "expr": "sum by (qmgr, queue) (rate(ibmmq_queue_mqget_count_total{qmgr=~\"$qmgr\"}[5m])) and on (qmgr, queue) topk(15, max by (qmgr, queue) (ibmmq_queue_depth_ratio{qmgr=~\"$qmgr\"}) > 0)",
           "refId": "D",
-          "range": false,
-          "instant": true,
-          "format": "table"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${ds}"
-          },
-          "expr": "sum by (qmgr, queue) (rate(ibmmq_queue_mqput_mqput1_count_total{qmgr=~\"$qmgr\", queue=~\"$queue\"}[5m]))",
-          "refId": "E",
-          "range": false,
-          "instant": true,
-          "format": "table"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${ds}"
-          },
-          "expr": "sum by (qmgr, queue) (rate(ibmmq_queue_mqget_count_total{qmgr=~\"$qmgr\", queue=~\"$queue\"}[5m]))",
-          "refId": "F",
-          "range": false,
-          "instant": true,
-          "format": "table"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${ds}"
-          },
-          "expr": "max by (qmgr, queue) (ibmmq_queue_input_handles_ratio{qmgr=~\"$qmgr\", queue=~\"$queue\"})",
-          "refId": "G",
           "range": false,
           "instant": true,
           "format": "table"
@@ -953,21 +1225,13 @@
               "Value #A": 2,
               "Value #B": 3,
               "Value #C": 4,
-              "Value #D": 5,
-              "Value #E": 6,
-              "Value #F": 7,
-              "Value #G": 8
+              "Value #D": 5
             },
             "renameByName": {
-              "qmgr": "qmgr",
-              "queue": "queue",
               "Value #A": "Depth",
               "Value #B": "Full",
               "Value #C": "Oldest message",
-              "Value #D": "Since last get",
-              "Value #E": "Puts /s",
-              "Value #F": "Gets /s",
-              "Value #G": "Readers"
+              "Value #D": "Gets /s"
             }
           }
         },
@@ -991,7 +1255,8 @@
         "defaults": {
           "custom": {
             "align": "auto",
-            "filterable": true
+            "filterable": true,
+            "minWidth": 70
           }
         },
         "overrides": [
@@ -1000,12 +1265,7 @@
               "id": "byName",
               "options": "Depth"
             },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "Depth"
-              }
-            ]
+            "properties": []
           },
           {
             "matcher": {
@@ -1013,10 +1273,6 @@
               "options": "Full"
             },
             "properties": [
-              {
-                "id": "displayName",
-                "value": "Full"
-              },
               {
                 "id": "unit",
                 "value": "percent"
@@ -1060,9 +1316,191 @@
             },
             "properties": [
               {
-                "id": "displayName",
-                "value": "Oldest message"
+                "id": "unit",
+                "value": "s"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Gets /s"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
               },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "qmgr"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Queue manager"
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Queue manager",
+                    "url": "/d/iyzitrace-ibm-mq-qmgr/ibm-mq-queue-manager?var-ds=${ds}&var-qmgr=${__data.fields.qmgr}&${__url_time_range}"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "queue"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Queue"
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Queue",
+                    "url": "/d/iyzitrace-ibm-mq-queue/ibm-mq-queue?var-ds=${ds}&var-qmgr=${__data.fields.qmgr}&var-queue=${__data.fields.queue}&${__url_time_range}"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "id": 12,
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 23
+      }
+    },
+    {
+      "type": "table",
+      "title": "Oldest messages",
+      "description": "The 15 queues, apart from the dead-letter queue, whose oldest message waits longest; click one for its dashboard.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${ds}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds}"
+          },
+          "expr": "topk(15, max by (qmgr, queue) (ibmmq_queue_oldest_message_age_ratio{qmgr=~\"$qmgr\", queue!=\"$dlq\"}) > 0)",
+          "refId": "A",
+          "range": false,
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds}"
+          },
+          "expr": "max by (qmgr, queue) (ibmmq_queue_depth_ratio{qmgr=~\"$qmgr\"}) and on (qmgr, queue) topk(15, max by (qmgr, queue) (ibmmq_queue_oldest_message_age_ratio{qmgr=~\"$qmgr\", queue!=\"$dlq\"}) > 0)",
+          "refId": "B",
+          "range": false,
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds}"
+          },
+          "expr": "max by (qmgr, queue) (ibmmq_queue_time_since_get_ratio{qmgr=~\"$qmgr\"}) and on (qmgr, queue) topk(15, max by (qmgr, queue) (ibmmq_queue_oldest_message_age_ratio{qmgr=~\"$qmgr\", queue!=\"$dlq\"}) > 0)",
+          "refId": "C",
+          "range": false,
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds}"
+          },
+          "expr": "max by (qmgr, queue) (ibmmq_queue_input_handles_ratio{qmgr=~\"$qmgr\"}) and on (qmgr, queue) topk(15, max by (qmgr, queue) (ibmmq_queue_oldest_message_age_ratio{qmgr=~\"$qmgr\", queue!=\"$dlq\"}) > 0)",
+          "refId": "D",
+          "range": false,
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "qmgr": 0,
+              "queue": 1,
+              "Value #A": 2,
+              "Value #B": 3,
+              "Value #C": 4,
+              "Value #D": 5
+            },
+            "renameByName": {
+              "Value #A": "Oldest message",
+              "Value #B": "Depth",
+              "Value #C": "Since last get",
+              "Value #D": "Readers"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Oldest message",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true,
+            "minWidth": 70
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Oldest message"
+            },
+            "properties": [
               {
                 "id": "unit",
                 "value": "s"
@@ -1098,13 +1536,16 @@
           {
             "matcher": {
               "id": "byName",
+              "options": "Depth"
+            },
+            "properties": []
+          },
+          {
+            "matcher": {
+              "id": "byName",
               "options": "Since last get"
             },
             "properties": [
-              {
-                "id": "displayName",
-                "value": "Since last get"
-              },
               {
                 "id": "unit",
                 "value": "s"
@@ -1114,402 +1555,82 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Puts /s"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "Puts /s"
-              },
-              {
-                "id": "unit",
-                "value": "short"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Gets /s"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "Gets /s"
-              },
-              {
-                "id": "unit",
-                "value": "short"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
               "options": "Readers"
             },
+            "properties": []
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "qmgr"
+            },
             "properties": [
               {
                 "id": "displayName",
-                "value": "Readers"
+                "value": "Queue manager"
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Queue manager",
+                    "url": "/d/iyzitrace-ibm-mq-qmgr/ibm-mq-queue-manager?var-ds=${ds}&var-qmgr=${__data.fields.qmgr}&${__url_time_range}"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "queue"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Queue"
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Queue",
+                    "url": "/d/iyzitrace-ibm-mq-queue/ibm-mq-queue?var-ds=${ds}&var-qmgr=${__data.fields.qmgr}&var-queue=${__data.fields.queue}&${__url_time_range}"
+                  }
+                ]
               }
             ]
           }
         ]
-      }
-    },
-    {
-      "id": 9,
-      "type": "timeseries",
-      "title": "Depth",
-      "description": "Messages on each selected queue.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${ds}"
       },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 22
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${ds}"
-          },
-          "expr": "max by (qmgr, queue) (ibmmq_queue_depth_ratio{qmgr=~\"$qmgr\", queue=~\"$queue\"})",
-          "refId": "A",
-          "range": true,
-          "instant": false,
-          "legendFormat": "{{qmgr}} {{queue}}"
-        }
-      ],
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "right",
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ]
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 1,
-            "fillOpacity": 0,
-            "showPoints": "never",
-            "spanNulls": false
-          }
-        },
-        "overrides": []
-      }
-    },
-    {
-      "id": 10,
-      "type": "timeseries",
-      "title": "Oldest message",
-      "description": "Age of the oldest message on each selected queue.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${ds}"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 22
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${ds}"
-          },
-          "expr": "max by (qmgr, queue) (ibmmq_queue_oldest_message_age_ratio{qmgr=~\"$qmgr\", queue=~\"$queue\"})",
-          "refId": "A",
-          "range": true,
-          "instant": false,
-          "legendFormat": "{{qmgr}} {{queue}}"
-        }
-      ],
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "right",
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ]
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 1,
-            "fillOpacity": 0,
-            "showPoints": "never",
-            "spanNulls": false,
-            "thresholdsStyle": {
-              "mode": "line"
-            }
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 300
-              }
-            ]
-          }
-        },
-        "overrides": []
-      }
-    },
-    {
-      "id": 11,
-      "type": "timeseries",
-      "title": "Puts per second",
-      "description": "Messages put on each selected queue.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${ds}"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 30
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${ds}"
-          },
-          "expr": "sum by (qmgr, queue) (rate(ibmmq_queue_mqput_mqput1_count_total{qmgr=~\"$qmgr\", queue=~\"$queue\"}[5m]))",
-          "refId": "A",
-          "range": true,
-          "instant": false,
-          "legendFormat": "{{qmgr}} {{queue}}"
-        }
-      ],
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "right",
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ]
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 1,
-            "fillOpacity": 0,
-            "showPoints": "never",
-            "spanNulls": false
-          }
-        },
-        "overrides": []
-      }
-    },
-    {
-      "id": 12,
-      "type": "timeseries",
-      "title": "Gets per second",
-      "description": "Messages taken from each selected queue.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${ds}"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 30
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${ds}"
-          },
-          "expr": "sum by (qmgr, queue) (rate(ibmmq_queue_mqget_count_total{qmgr=~\"$qmgr\", queue=~\"$queue\"}[5m]))",
-          "refId": "A",
-          "range": true,
-          "instant": false,
-          "legendFormat": "{{qmgr}} {{queue}}"
-        }
-      ],
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "right",
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ]
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 1,
-            "fillOpacity": 0,
-            "showPoints": "never",
-            "spanNulls": false
-          }
-        },
-        "overrides": []
-      }
-    },
-    {
       "id": 13,
-      "type": "row",
-      "title": "Dead-letter queues",
-      "collapsed": false,
       "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 38
-      },
-      "panels": []
-    },
-    {
-      "id": 14,
-      "type": "timeseries",
-      "title": "Messages on the dead-letter queue",
-      "description": "Depth of $dlq on each selected queue manager.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${ds}"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 24,
-        "x": 0,
-        "y": 39
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${ds}"
-          },
-          "expr": "max by (qmgr) (ibmmq_queue_depth_ratio{qmgr=~\"$qmgr\", queue=\"$dlq\"})",
-          "refId": "A",
-          "range": true,
-          "instant": false,
-          "legendFormat": "{{qmgr}}"
-        }
-      ],
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "right",
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ]
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 1,
-            "fillOpacity": 0,
-            "showPoints": "never",
-            "spanNulls": false,
-            "thresholdsStyle": {
-              "mode": "line"
-            }
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 1
-              }
-            ]
-          }
-        },
-        "overrides": []
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 23
       }
     },
     {
-      "id": 15,
       "type": "row",
-      "title": "Channels",
+      "title": "Channels between queue managers",
       "collapsed": false,
+      "panels": [],
+      "id": 14,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 47
-      },
-      "panels": []
+        "y": 32
+      }
     },
     {
-      "id": 16,
       "type": "table",
-      "title": "Channels between queue managers",
-      "description": "Sender, receiver and cluster channels that have a status. Channels with no status (never started, or inactive) are not listed.",
+      "title": "Channels",
+      "description": "Sender, receiver and cluster channels with a status, stopped ones first. Channels that never started or are inactive have no status and are not listed.",
       "datasource": {
         "type": "prometheus",
         "uid": "${ds}"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 24,
-        "x": 0,
-        "y": 48
       },
       "targets": [
         {
@@ -1517,7 +1638,7 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "expr": "max by (qmgr, channel, type, rqmname, connname) (last_over_time(ibmmq_channel_status_ratio{qmgr=~\"$qmgr\", type!=\"SVRCONN\"}[90s]))",
+          "expr": "max by (qmgr, channel, type, rqmname, connname) (last_over_time(ibmmq_channel_status_squash_ratio{qmgr=~\"$qmgr\", type!=\"SVRCONN\"}[90s]))",
           "refId": "A",
           "range": false,
           "instant": true,
@@ -1528,7 +1649,7 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "expr": "max by (qmgr, channel, type, rqmname, connname) (last_over_time(ibmmq_channel_status_squash_ratio{qmgr=~\"$qmgr\", type!=\"SVRCONN\"}[90s]))",
+          "expr": "max by (qmgr, channel, type, rqmname, connname) (last_over_time(ibmmq_channel_status_ratio{qmgr=~\"$qmgr\", type!=\"SVRCONN\"}[90s]))",
           "refId": "B",
           "range": false,
           "instant": true,
@@ -1541,6 +1662,17 @@
           },
           "expr": "sum by (qmgr, channel, type, rqmname, connname) (rate(ibmmq_channel_messages_total{qmgr=~\"$qmgr\", type!=\"SVRCONN\"}[5m]))",
           "refId": "C",
+          "range": false,
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds}"
+          },
+          "expr": "max by (qmgr, channel, type, rqmname, connname) (ibmmq_channel_xmitq_time_short_ratio{qmgr=~\"$qmgr\", type!=\"SVRCONN\"}) / 1e6",
+          "refId": "D",
           "range": false,
           "instant": true,
           "format": "table"
@@ -1565,17 +1697,14 @@
               "connname": 4,
               "Value #A": 5,
               "Value #B": 6,
-              "Value #C": 7
+              "Value #C": 7,
+              "Value #D": 8
             },
             "renameByName": {
-              "qmgr": "qmgr",
-              "channel": "channel",
-              "type": "type",
-              "rqmname": "rqmname",
-              "connname": "connname",
-              "Value #A": "Status",
-              "Value #B": "State",
-              "Value #C": "Messages /s"
+              "Value #A": "State",
+              "Value #B": "Status",
+              "Value #C": "Messages /s",
+              "Value #D": "XMITQ time"
             }
           }
         },
@@ -1585,7 +1714,7 @@
             "sort": [
               {
                 "field": "State",
-                "desc": true
+                "desc": false
               }
             ]
           }
@@ -1599,20 +1728,56 @@
         "defaults": {
           "custom": {
             "align": "auto",
-            "filterable": true
+            "filterable": true,
+            "minWidth": 70
           }
         },
         "overrides": [
           {
             "matcher": {
               "id": "byName",
-              "options": "Status"
+              "options": "State"
             },
             "properties": [
               {
-                "id": "displayName",
-                "value": "Status"
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "Stopped",
+                        "color": "red",
+                        "index": 0
+                      },
+                      "1": {
+                        "text": "Changing",
+                        "color": "orange",
+                        "index": 1
+                      },
+                      "2": {
+                        "text": "Running",
+                        "color": "green",
+                        "index": 2
+                      }
+                    }
+                  }
+                ]
               },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Status"
+            },
+            "properties": [
               {
                 "id": "mappings",
                 "value": [
@@ -1694,182 +1859,108 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "State"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "State"
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "type": "value",
-                    "options": {
-                      "0": {
-                        "text": "Stopped",
-                        "color": "red",
-                        "index": 0
-                      },
-                      "1": {
-                        "text": "Changing",
-                        "color": "orange",
-                        "index": 1
-                      },
-                      "2": {
-                        "text": "Running",
-                        "color": "green",
-                        "index": 2
-                      }
-                    }
-                  }
-                ]
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "color-background"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
               "options": "Messages /s"
             },
             "properties": [
               {
-                "id": "displayName",
-                "value": "Messages /s"
-              },
-              {
                 "id": "unit",
                 "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "XMITQ time"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "qmgr"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Queue manager"
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Queue manager",
+                    "url": "/d/iyzitrace-ibm-mq-qmgr/ibm-mq-queue-manager?var-ds=${ds}&var-qmgr=${__data.fields.qmgr}&${__url_time_range}"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "channel"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Channel"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "type"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Type"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "rqmname"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Remote queue manager"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "connname"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Address"
               }
             ]
           }
         ]
-      }
-    },
-    {
-      "id": 17,
-      "type": "table",
-      "title": "Client connections",
-      "description": "Application connections per server-connection channel.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${ds}"
       },
+      "id": 15,
       "gridPos": {
-        "h": 7,
+        "h": 8,
         "w": 24,
         "x": 0,
-        "y": 56
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${ds}"
-          },
-          "expr": "count by (qmgr, channel) (last_over_time(ibmmq_channel_status_squash_ratio{qmgr=~\"$qmgr\", type=\"SVRCONN\"}[90s]))",
-          "refId": "A",
-          "range": false,
-          "instant": true,
-          "format": "table"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${ds}"
-          },
-          "expr": "sum by (qmgr, channel) (rate(ibmmq_channel_messages_total{qmgr=~\"$qmgr\", type=\"SVRCONN\"}[5m]))",
-          "refId": "B",
-          "range": false,
-          "instant": true,
-          "format": "table"
-        }
-      ],
-      "transformations": [
-        {
-          "id": "merge",
-          "options": {}
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Time": true
-            },
-            "indexByName": {
-              "qmgr": 0,
-              "channel": 1,
-              "Value #A": 2,
-              "Value #B": 3
-            },
-            "renameByName": {
-              "qmgr": "qmgr",
-              "channel": "channel",
-              "Value #A": "Connections",
-              "Value #B": "MQI calls /s"
-            }
-          }
-        },
-        {
-          "id": "sortBy",
-          "options": {
-            "sort": [
-              {
-                "field": "Connections",
-                "desc": true
-              }
-            ]
-          }
-        }
-      ],
-      "options": {
-        "showHeader": true,
-        "cellHeight": "sm"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "align": "auto",
-            "filterable": true
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Connections"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "Connections"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "MQI calls /s"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "MQI calls /s"
-              },
-              {
-                "id": "unit",
-                "value": "short"
-              }
-            ]
-          }
-        ]
+        "y": 33
       }
     }
   ]

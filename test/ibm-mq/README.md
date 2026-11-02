@@ -36,7 +36,7 @@ Differences from a customer's installation, all on the queue manager side:
 You need Docker, a running IyziTrace that containers can reach, and a department's agent key.
 From this folder:
 
-1. Build mq_otel exactly as [docs/07-ibm-mq.md](../../docs/07-ibm-mq.md) step 2 says, in `build/`:
+1. Build mq_otel exactly as [docs/07-ibm-mq.md](../../docs/07-ibm-mq.md) phase 2 says, in `build/`:
 
    ```bash
    mkdir -p build && cd build
@@ -75,8 +75,8 @@ After three to five minutes IyziTrace shows:
 - in Services, the applications (namespace `poc-orders`) with their `send queue:///...` and
   `process queue:///...` operations, and on Service Map the edge from `orders-api` to the worker;
 - the brokers `jms://qm1:1414` and `jms://qm2:1414`, each with its own queues, both monitored;
-- the dashboard [grafana/dashboards/ibm-mq.json](../../grafana/dashboards/ibm-mq.json), imported as
-  docs/07 step 6 says, with `QM1` and `QM2` Running, the channel `QM1.TO.QM2` Running on both ends,
+- the dashboards of [grafana/dashboards](../../grafana/dashboards), imported as docs/07 phase 5 says,
+  with `QM1` and `QM2` Running, the channel `QM1.TO.QM2` Running on both ends,
   the depth and oldest message of `BILLING.REQUEST` rising and falling every minute, and the
   dead-letter queue of `QM1` growing by one message every 25 orders;
 - in Agent Manager, `otelcol-poc-mq-01` (group `mq-hosts`).
