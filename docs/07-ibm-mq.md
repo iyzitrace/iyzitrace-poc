@@ -98,14 +98,14 @@ Repeat for every queue manager.
 
 As root.
 
-**The image**, built once. Docker downloads the two jars from Maven Central and checks them:
+**The image:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iyzitrace/iyzitrace-poc/main/collectors/ibm-mq/Dockerfile | docker build -t iyzitrace/ibm-mq-metrics:1.61.0 -
+docker pull ghcr.io/antreklabs/ibm-mq-metrics:dev-c1139e5f2ae5e7164ffef09dba8d16c8ce5b8f94
 ```
 
-Without internet on this machine, run the same command on one that has it, then
-`docker save iyzitrace/ibm-mq-metrics:1.61.0 -o ibm-mq-metrics.tar`, copy the file over and
+Without internet on this machine, pull it on one that has it, then
+`docker save ghcr.io/antreklabs/ibm-mq-metrics:dev-c1139e5f2ae5e7164ffef09dba8d16c8ce5b8f94 -o ibm-mq-metrics.tar`, copy the file over and
 `docker load -i ibm-mq-metrics.tar`.
 
 **The file**, one for every queue manager:
@@ -138,7 +138,7 @@ If the dead-letter queue has another name that starts with `SYSTEM.`, check that
 ```bash
 docker run -d --name ibm-mq-metrics --restart unless-stopped --network host \
   -v /etc/ibm-mq-metrics/config.yml:/etc/ibm-mq-metrics/config.yml:ro \
-  iyzitrace/ibm-mq-metrics:1.61.0
+  ghcr.io/antreklabs/ibm-mq-metrics:dev-c1139e5f2ae5e7164ffef09dba8d16c8ce5b8f94
 docker logs ibm-mq-metrics 2>&1 | grep "Active Channels"
 ```
 
@@ -204,7 +204,7 @@ name in **Dead-letter queue**.
 | Remove a queue manager | remove its block, then `docker restart ibm-mq-metrics` |
 | Change `iyzmon`'s password | change it in the file, then `docker restart ibm-mq-metrics` |
 | New queues | nothing: every queue is read again each minute |
-| Upgrade | build the image again from the new Dockerfile, then `docker rm -f ibm-mq-metrics` and `docker run` as in step 2 |
+| Upgrade | `docker pull` the new image, then `docker rm -f ibm-mq-metrics` and `docker run` with it as in step 2 |
 | See what it does | `docker logs -f ibm-mq-metrics` |
 
 ## Removing everything
@@ -215,7 +215,7 @@ On the collector's machine:
 
 ```bash
 docker rm -f ibm-mq-metrics
-docker rmi iyzitrace/ibm-mq-metrics:1.61.0
+docker rmi ghcr.io/antreklabs/ibm-mq-metrics:dev-c1139e5f2ae5e7164ffef09dba8d16c8ce5b8f94
 rm -r /etc/ibm-mq-metrics
 ```
 

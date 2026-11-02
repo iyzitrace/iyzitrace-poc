@@ -44,13 +44,11 @@ services:
       - host.docker.internal:host-gateway
     depends_on: [qm1, qm2]
 
-  # docs/07-ibm-mq.md: the image built from collectors/ibm-mq/Dockerfile with one config file. It
-  # shares the Linux machine's network, as `docker run --network host` does there, so 127.0.0.1:4317
-  # is that machine's collector.
+  # docs/07-ibm-mq.md step 2: the published image with one config file. It shares the Linux
+  # machine's network, as `docker run --network host` does there, so 127.0.0.1:4317 is that
+  # machine's collector.
   ibm-mq-metrics:
-    build:
-      context: ../../collectors/ibm-mq
-    image: iyzitrace-poc-ibm-mq-metrics
+    image: ghcr.io/antreklabs/ibm-mq-metrics:dev-c1139e5f2ae5e7164ffef09dba8d16c8ce5b8f94
     network_mode: "service:host"
     restart: unless-stopped
     volumes:

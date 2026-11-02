@@ -47,7 +47,7 @@ are downloaded in the steps:
 | [collectors/linux-host/otelcol-contrib.conf.example](collectors/linux-host/otelcol-contrib.conf.example) | the values that differ per machine: address, key, name |
 | [instrumentation/java/otel-agent.properties](instrumentation/java/otel-agent.properties) | the Java agent's settings |
 | [collectors/ibm-mq/monitor-authorities.mqsc](collectors/ibm-mq/monitor-authorities.mqsc), [remove-monitor-authorities.mqsc](collectors/ibm-mq/remove-monitor-authorities.mqsc) | the read-only authorities of the IBM MQ monitoring user on each queue manager, and their removal |
-| [collectors/ibm-mq/Dockerfile](collectors/ibm-mq/Dockerfile), [config.yml](collectors/ibm-mq/config.yml) | the IBM MQ metrics container and its one file, which lists every queue manager |
+| [collectors/ibm-mq/config.yml](collectors/ibm-mq/config.yml) | the IBM MQ metrics container's one file, which lists every queue manager |
 | [grafana/dashboards/ibm-mq-overview.json](grafana/dashboards/ibm-mq-overview.json), [ibm-mq-queue-manager.json](grafana/dashboards/ibm-mq-queue-manager.json), [ibm-mq-queue.json](grafana/dashboards/ibm-mq-queue.json) | the IBM MQ dashboards: every queue manager, one queue manager, one queue |
 
 ## Versions
@@ -60,9 +60,7 @@ are downloaded in the steps:
 | Grafana (kit): chart `grafana-community/grafana` | `14.0.1`, Grafana 13.1.1; IyziTrace plugin 1.3.1 from the `dev` branch at `de49fe9f` (release `grafana-plugin-dev.de49fe9`), Infinity 4.1.1, Plotly panel 0.5.0 |
 | OpenTelemetry Java agent | 2.21.0 |
 | iyzitrace appserver-deployment extension | 0.1.0 ([source](https://github.com/antreklabs/iyzitrace-otel-java-extensions)) |
-| OpenTelemetry [ibm-mq-metrics](https://github.com/open-telemetry/opentelemetry-java-contrib/tree/main/ibm-mq-metrics) | 1.61.0-alpha |
-| IBM MQ Java client (`com.ibm.mq.allclient`) | 10.0.0.5 |
-| IBM MQ metrics container base image | `eclipse-temurin:21-jre`, pinned by digest |
+| IBM MQ metrics image (`ghcr.io/antreklabs/ibm-mq-metrics`) | `dev-c1139e5f2ae5e7164ffef09dba8d16c8ce5b8f94`: OpenTelemetry [ibm-mq-metrics](https://github.com/open-telemetry/opentelemetry-java-contrib/tree/main/ibm-mq-metrics) 1.61.0-alpha and IBM's MQ Java client 10.0.0.5 (built from the platform's `ibm-mq-metrics/`) |
 | iyzitrace ibm-mq extension | 0.2.0 ([source](https://github.com/antreklabs/iyzitrace-otel-java-extensions)) |
 
 ## What was tested

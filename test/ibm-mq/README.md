@@ -7,7 +7,7 @@ customer.
 |---|---|
 | `qm1`, `qm2` | two of the customer's queue managers: IBM MQ Advanced for Developers 9.4.5.1, with the read-only authorities of [collectors/ibm-mq/monitor-authorities.mqsc](../../collectors/ibm-mq/monitor-authorities.mqsc) and the monitoring channel `IYZI.MON.SVRCONN` |
 | `host` (`poc-mq-01`) | the customer's Linux machine: Rocky Linux 8.10, Java 21, WildFly 41, the collector (docs/03), the Java agent (docs/04) with the IBM MQ extension (docs/07 step 3), set up by [host-run.sh](host-run.sh) with the commands of those pages |
-| `ibm-mq-metrics` | the IBM MQ metrics container of docs/07, built from [collectors/ibm-mq/Dockerfile](../../collectors/ibm-mq/Dockerfile), with [ibm-mq-metrics.yml](ibm-mq-metrics.yml) (the repository's `config.yml` with the lab's values) and the Linux machine's network, as `docker run --network host` gives it there |
+| `ibm-mq-metrics` | the IBM MQ metrics container of docs/07 step 2, `ghcr.io/antreklabs/ibm-mq-metrics:dev-c1139e5f2ae5e7164ffef09dba8d16c8ce5b8f94`, with [ibm-mq-metrics.yml](ibm-mq-metrics.yml) (the repository's `config.yml` with the lab's values) and the Linux machine's network, as `docker run --network host` gives it there |
 
 The two applications on WildFly carry the IBM MQ JMS client (`com.ibm.mq.jakarta.client` 9.4.1.0)
 inside their WARs, as the customer's services do:
