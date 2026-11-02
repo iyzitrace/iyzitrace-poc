@@ -6,7 +6,7 @@ customer.
 | Container | Stands in for |
 |---|---|
 | `qm1`, `qm2` | two of the customer's queue managers: IBM MQ Advanced for Developers 9.4.5.1, with the read-only authorities of [collectors/ibm-mq/monitor-authorities.mqsc](../../collectors/ibm-mq/monitor-authorities.mqsc) and the monitoring channel `IYZI.MON.SVRCONN` |
-| `host` (`poc-mq-01`) | the customer's Linux machine: Rocky Linux 8.10, Java 21, WildFly 41, the collector (docs/03) and the Java agent (docs/04), set up by [host-run.sh](host-run.sh) with the commands of those pages |
+| `host` (`poc-mq-01`) | the customer's Linux machine: Rocky Linux 8.10, Java 21, WildFly 41, the collector (docs/03), the Java agent (docs/04) with the IBM MQ extension (docs/07 step 3), set up by [host-run.sh](host-run.sh) with the commands of those pages |
 | `ibm-mq-metrics` | the IBM MQ metrics container of docs/07, built from [collectors/ibm-mq/Dockerfile](../../collectors/ibm-mq/Dockerfile), with [ibm-mq-metrics.yml](ibm-mq-metrics.yml) (the repository's `config.yml` with the lab's values) and the Linux machine's network, as `docker run --network host` gives it there |
 
 The two applications on WildFly carry the IBM MQ JMS client (`com.ibm.mq.jakarta.client` 9.4.1.0)
@@ -62,7 +62,8 @@ After three to five minutes IyziTrace shows:
 
 - in Services, the applications (namespace `poc-orders`) with their `send queue:///...` and
   `process queue:///...` operations, and on Service Map the edge from `orders-api` to the worker;
-- the dashboards of [grafana/dashboards](../../grafana/dashboards), imported as docs/07 step 3 says,
+- the brokers `jms://qm1:1414` and `jms://qm2:1414`, each with its own queues;
+- the dashboards of [grafana/dashboards](../../grafana/dashboards), imported as docs/07 step 4 says,
   with `QM1` and `QM2` Running, the channel `QM1.TO.QM2` Running on both ends,
   the depth and oldest message of `BILLING.REQUEST` on `QM2` rising and falling, and the
   dead-letter queue of `QM1` growing by one message every 25 orders;

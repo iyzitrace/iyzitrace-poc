@@ -63,6 +63,7 @@ are downloaded in the steps:
 | OpenTelemetry [ibm-mq-metrics](https://github.com/open-telemetry/opentelemetry-java-contrib/tree/main/ibm-mq-metrics) | 1.61.0-alpha |
 | IBM MQ Java client (`com.ibm.mq.allclient`) | 10.0.0.5 |
 | IBM MQ metrics container base image | `eclipse-temurin:21-jre`, pinned by digest |
+| iyzitrace ibm-mq extension | 0.2.0 ([source](https://github.com/antreklabs/iyzitrace-otel-java-extensions)) |
 
 ## What was tested
 
@@ -86,7 +87,8 @@ The IBM MQ metrics container read both queue managers with only the authorities 
 `monitor-authorities.mqsc`; the queue managers refused its statistics reset and event queue reads
 (reason 2035), so nothing was reset or removed. Every query of the three dashboards returned data
 through Grafana, depths and oldest-message ages matched `runmqsc`, and a stopped queue manager
-showed as Not reporting. Not covered there: the monitoring channel with a password (the developer
+showed as Not reporting. With the IBM MQ extension, IyziTrace showed the two queue managers as two
+brokers. Not covered there: the monitoring channel with a password (the developer
 image checks passwords only for its own users) and queue managers of version 9.2.
 
 Details are at the end of the [platform guide](platform/kubernetes/README.md#what-was-tested-before-the-first-openshift-poc),

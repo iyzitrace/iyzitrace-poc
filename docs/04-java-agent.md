@@ -68,7 +68,8 @@ Every server needs the same three JVM options. Only where you put them differs.
 -Dotel.javaagent.extensions=/opt/otel/extensions
 ```
 
-The agent loads every `.jar` in `/opt/otel/extensions`.
+The agent loads every `.jar` in `/opt/otel/extensions`: the appserver-deployment extension, and the
+IBM MQ extension of [07-ibm-mq.md](07-ibm-mq.md) when the applications use IBM MQ.
 
 **Tomcat 9 or 10.1:** create `$CATALINA_BASE/bin/setenv.sh` with this content. If the file already
 exists, add these lines at the end.

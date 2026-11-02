@@ -1,8 +1,9 @@
 #!/bin/sh
-# Runs inside the lab's Linux machine: the commands of docs/03-linux-collector.md and
-# docs/04-java-agent.md (WildFly) as written there (files are taken from this checkout instead of
-# raw.githubusercontent.com, so the version under test is the one used), then orders to the lab's
-# applications. The IBM MQ metrics run in their own container next to it (docker-compose.yml).
+# Runs inside the lab's Linux machine: the commands of docs/03-linux-collector.md,
+# docs/04-java-agent.md (WildFly) and docs/07-ibm-mq.md step 3 as written there (files are taken from
+# this checkout instead of raw.githubusercontent.com, so the version under test is the one used),
+# then orders to the lab's applications. The IBM MQ metrics run in their own container next to it
+# (docker-compose.yml).
 set -eu
 
 echo "== docs/03 step 1-2: download, check, install the collector"
@@ -38,6 +39,11 @@ cp /poc/instrumentation/java/otel-agent.properties /opt/otel/otel-agent.properti
 chmod -R a+rX /opt/otel
 sed -i -e 's/^otel.service.name=.*/otel.service.name=wildfly-poc-mq-01/' \
        -e 's/^otel.resource.attributes=.*/otel.resource.attributes=service.namespace=poc-orders,deployment.environment.name=poc/' /opt/otel/otel-agent.properties
+
+echo "== docs/07 step 3: the IBM MQ extension next to the agent's other extensions"
+cd /opt/otel
+curl -fsSLo extensions/ibm-mq-extension.jar https://github.com/antreklabs/iyzitrace-otel-java-extensions/releases/download/v0.2.0/ibm-mq-extension-0.2.0.jar
+echo "7efa3024b25055174a138d9b76fb892efa3e6f9efbdddb656172864b6fad6fd8  extensions/ibm-mq-extension.jar" | sha256sum -c -
 
 echo "== docs/04 step 3: WildFly standalone.conf"
 cat >> /opt/wildfly/bin/standalone.conf <<'CONF'

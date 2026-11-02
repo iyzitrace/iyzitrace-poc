@@ -1,8 +1,10 @@
 # 7. IBM MQ
 
-What the customer gets, for every queue manager, on three dashboards in Grafana: its status, the
-depth of its queues, the oldest message on each queue, the dead-letter queue and the channels
-between queue managers.
+What the customer gets, for every queue manager:
+
+- on three dashboards in Grafana: its status, the depth of its queues, the oldest message on each
+  queue, the dead-letter queue and the channels between queue managers;
+- in IyziTrace, its own broker, with the applications that send to it and read from it.
 
 How the data flows:
 
@@ -10,7 +12,8 @@ How the data flows:
  queue manager QM1 ─┐
  queue manager QM2 ─┼── MQ client, read-only user iyzmon ──► IBM MQ metrics container ──► collector ──► IyziTrace
  ...                ┘    channel IYZI.MON.SVRCONN            (one, for every queue        127.0.0.1:4317
-                                                              manager)
+                                                              manager)                         ▲
+ WildFly + Java agent + IBM MQ extension (JMS spans with the queue manager's host and port) ───┘
 ```
 
 The container runs OpenTelemetry's
@@ -23,8 +26,9 @@ Nothing is installed on the queue managers' hosts.
 |---|---|---|---|
 | [1. Read-only user](#1-a-read-only-user-on-each-queue-manager) | MQ administrator | each queue manager | 10 min per queue manager |
 | [2. The container](#2-the-container-on-the-collectors-machine) | Linux administrator | the collector's machine | 15 min, then 1 min per queue manager |
-| [3. Dashboards](#3-the-dashboards) | Grafana administrator | Grafana | 5 min |
-| [4. Acceptance](#4-acceptance) | IyziTrace and the customer | Grafana | 15 min |
+| [3. Java servers](#3-the-ibm-mq-extension-on-the-java-servers) | application server administrator | each Java server that uses IBM MQ | 5 min and a restart |
+| [4. Dashboards](#4-the-dashboards) | Grafana administrator | Grafana | 5 min |
+| [5. Acceptance](#5-acceptance) | IyziTrace and the customer | Grafana, IyziTrace | 15 min |
 
 ## Before you start
 
@@ -148,7 +152,26 @@ gRPC receiver on `127.0.0.1:4317` in a `metrics` pipeline that exports to IyziTr
 collector on another address, add `-e OTEL_EXPORTER_OTLP_ENDPOINT=http://<host>:4317` to
 `docker run`.
 
-## 3. The dashboards
+## 3. The IBM MQ extension on the Java servers
+
+The Java agent's JMS spans name the queue but not the queue manager, so IyziTrace shows every queue
+manager as one broker `jms`. The extension adds the queue manager's host and port. On every Java
+server that uses IBM MQ, next to the agent of [04-java-agent.md](04-java-agent.md):
+
+```bash
+cd /opt/otel
+curl -fLo extensions/ibm-mq-extension.jar https://github.com/antreklabs/iyzitrace-otel-java-extensions/releases/download/v0.2.0/ibm-mq-extension-0.2.0.jar
+echo "7efa3024b25055174a138d9b76fb892efa3e6f9efbdddb656172864b6fad6fd8  extensions/ibm-mq-extension.jar" | sha256sum -c -
+```
+
+The agent loads it from the extensions folder (step 3 of [04-java-agent.md](04-java-agent.md)).
+Restart the server the way you normally do. The applications need no change.
+
+**Check:** after a few messages, IyziTrace shows the applications' `send queue:///<QUEUE>` and
+`process queue:///<QUEUE>` operations, and one broker per queue manager, named
+`jms://<host>:<port>`, instead of a single broker `jms`.
+
+## 4. The dashboards
 
 In Grafana, for each of the three files: Dashboards, New, Import, upload the file, Import.
 
@@ -162,7 +185,7 @@ Start at **IBM MQ - Overview** and choose the department at the top. A click on 
 queue opens its own dashboard. If the dead-letter queue is not `SYSTEM.DEAD.LETTER.QUEUE`, write its
 name in **Dead-letter queue**.
 
-## 4. Acceptance
+## 5. Acceptance
 
 | Check | Where | Expected |
 |---|---|---|
@@ -171,6 +194,7 @@ name in **Dead-letter queue**.
 | Dead letters are right | IBM MQ - Overview, **Dead letters** column; `echo "DISPLAY QLOCAL(SYSTEM.DEAD.LETTER.QUEUE) CURDEPTH" \| runmqsc QM1` | the same number |
 | Oldest messages are right | a queue manager's dashboard; `echo "DISPLAY QSTATUS(<QUEUE>) MSGAGE" \| runmqsc QM1` | the same age in seconds, give or take a minute |
 | An outage shows | `docker stop ibm-mq-metrics` | within 3 minutes **Not reporting** shows every queue manager; `docker start ibm-mq-metrics` turns it back |
+| The applications' messages reach their queue manager | IyziTrace | one broker `jms://<host>:<port>` per queue manager, with its queues |
 
 ## Day-2 operations
 
@@ -184,6 +208,8 @@ name in **Dead-letter queue**.
 | See what it does | `docker logs -f ibm-mq-metrics` |
 
 ## Removing everything
+
+On the Java servers: `rm /opt/otel/extensions/ibm-mq-extension.jar`, then restart them.
 
 On the collector's machine:
 
@@ -227,3 +253,4 @@ These come from ibm-mq-metrics 1.61.0; the dashboards take them into account.
 | The log is fine but nothing arrives in IyziTrace | the collector does not listen on `127.0.0.1:4317`, or the container was started without `--network host` |
 | Oldest message is always 0 | queue monitoring is off: `ALTER QMGR MONQ(MEDIUM)` (step 1) |
 | A queue is missing | it starts with `AMQ.` or with one of the `SYSTEM.` prefixes in `queueFilters` |
+| All queue managers show as one broker `jms` | the IBM MQ extension is not loaded on the Java server (step 3): `ls /opt/otel/extensions`, and the agent option must name the folder |
