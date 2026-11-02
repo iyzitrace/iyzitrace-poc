@@ -9,7 +9,8 @@ Wants=network-online.target
 User=mqotel
 Group=mqotel
 EnvironmentFile=/etc/mq_otel/%i.env
-Environment=LD_LIBRARY_PATH=/opt/mqm/lib64
+# IBM's redistributable MQ client, in mq_otel's own folder (docs/07-ibm-mq.md, phase 3).
+Environment=LD_LIBRARY_PATH=/opt/mq_otel/mqclient/lib64
 # The MQ client's own error log goes here, under /var/lib/mq_otel/%i.
 Environment=MQ_OVERRIDE_DATA_PATH=/var/lib/mq_otel/%i
 StateDirectory=mq_otel/%i

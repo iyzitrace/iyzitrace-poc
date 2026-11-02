@@ -39,7 +39,7 @@ chmod -R a+rX /opt/otel
 sed -i -e 's/^otel.service.name=.*/otel.service.name=wildfly-poc-mq-01/' \
        -e 's/^otel.resource.attributes=.*/otel.resource.attributes=service.namespace=poc-orders,deployment.environment.name=poc/' /opt/otel/otel-agent.properties
 
-echo "== docs/07 step 6: the IBM MQ extension next to the agent's other extensions"
+echo "== docs/07 phase 4: the IBM MQ extension next to the agent's other extensions"
 cd /opt/otel
 curl -fsSLo extensions/ibm-mq-extension.jar https://github.com/antreklabs/iyzitrace-otel-java-extensions/releases/download/v0.2.0/ibm-mq-extension-0.2.0.jar
 echo "7efa3024b25055174a138d9b76fb892efa3e6f9efbdddb656172864b6fad6fd8  extensions/ibm-mq-extension.jar" | sha256sum -c -
@@ -58,15 +58,15 @@ nohup /opt/wildfly/bin/standalone.sh -b 127.0.0.1 > /dev/null 2>&1 &
 for i in $(seq 1 180); do curl -fsS http://127.0.0.1:8080/orders-api/order -o /dev/null 2>/dev/null && break; sleep 2; done
 grep -m1 "opentelemetry-javaagent - version" /opt/wildfly/standalone/log/server.log || true
 
-echo "== docs/07 step 2: the MQ client libraries"
-mkdir -p /opt/mqm
-cd /opt/mqm
+echo "== docs/07 phase 3: the MQ client libraries"
+mkdir -p /opt/mq_otel/mqclient
+cd /opt/mq_otel/mqclient
 curl -fsSLO https://public.dhe.ibm.com/ibmdl/export/pub/software/websphere/messaging/mqdev/redist/10.0.1.0-IBM-MQC-Redist-LinuxX64.tar.gz
 echo "f8f467d5e42001cc5cbe780b07d971fd2b0850de321753c4814ceced5248915e  10.0.1.0-IBM-MQC-Redist-LinuxX64.tar.gz" | sha256sum -c -
 tar -xzf 10.0.1.0-IBM-MQC-Redist-LinuxX64.tar.gz
 rm 10.0.1.0-IBM-MQC-Redist-LinuxX64.tar.gz
 
-echo "== docs/07 step 3: mq_otel, its user and its configuration"
+echo "== docs/07 phase 3: mq_otel, its user and its configuration"
 useradd -r -m -d /var/lib/mq_otel -s /sbin/nologin mqotel
 install -D -m 0755 /poc/test/ibm-mq/build/mq_otel /opt/mq_otel/mq_otel
 install -D -m 0644 /poc/collectors/ibm-mq/mq_otel.yaml /etc/mq_otel/mq_otel.yaml
@@ -82,11 +82,11 @@ for qm in QM1 QM2; do
   chmod 640 /etc/mq_otel/$qm.env
 done
 
-echo "== docs/07 step 4: start one mq_otel per queue manager (no systemd: started directly with the unit's environment)"
+echo "== docs/07 phase 3: start one mq_otel per queue manager (no systemd: started directly with the unit's environment)"
 for qm in QM1 QM2; do
   mkdir -p /var/lib/mq_otel/$qm && chown mqotel:mqotel /var/lib/mq_otel/$qm
   ( set -a; . /etc/mq_otel/$qm.env; set +a
-    LD_LIBRARY_PATH=/opt/mqm/lib64 MQ_OVERRIDE_DATA_PATH=/var/lib/mq_otel/$qm \
+    LD_LIBRARY_PATH=/opt/mq_otel/mqclient/lib64 MQ_OVERRIDE_DATA_PATH=/var/lib/mq_otel/$qm \
       nohup runuser -u mqotel -- /opt/mq_otel/mq_otel -f=/etc/mq_otel/mq_otel.yaml > /var/log/mq_otel-$qm.log 2>&1 & )
 done
 

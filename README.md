@@ -31,7 +31,7 @@ Other platforms and languages will be added the same way.
    and the plugin in Grafana
 4. [Collector on each Linux machine](docs/03-linux-collector.md)
 5. [Java agent on each Java server](docs/04-java-agent.md)
-6. [IBM MQ queue managers](docs/07-ibm-mq.md), when the applications use IBM MQ
+6. [IBM MQ runbook](docs/07-ibm-mq.md), when the applications use IBM MQ
 7. [Check that everything works](docs/05-verify.md)
 8. [When something does not work](docs/06-troubleshooting.md)
 
@@ -46,9 +46,9 @@ are downloaded in the steps:
 | [collectors/linux-host/config.yaml](collectors/linux-host/config.yaml) | the collector's configuration, the same on every machine |
 | [collectors/linux-host/otelcol-contrib.conf.example](collectors/linux-host/otelcol-contrib.conf.example) | the values that differ per machine: address, key, name |
 | [instrumentation/java/otel-agent.properties](instrumentation/java/otel-agent.properties) | the Java agent's settings |
-| [collectors/ibm-mq/monitor-authorities.mqsc](collectors/ibm-mq/monitor-authorities.mqsc) | the read-only authorities of the IBM MQ monitoring user, run on each queue manager |
+| [collectors/ibm-mq/monitor-authorities.mqsc](collectors/ibm-mq/monitor-authorities.mqsc), [remove-monitor-authorities.mqsc](collectors/ibm-mq/remove-monitor-authorities.mqsc) | the read-only authorities of the IBM MQ monitoring user on each queue manager, and their removal |
 | [collectors/ibm-mq/mq_otel.yaml](collectors/ibm-mq/mq_otel.yaml), [qm.env.example](collectors/ibm-mq/qm.env.example), [mq_otel@.service](collectors/ibm-mq/mq_otel@.service) | IBM's MQ exporter: its settings (the same for every queue manager), the values per queue manager, and its systemd service |
-| [grafana/dashboards/ibm-mq.json](grafana/dashboards/ibm-mq.json) | the IBM MQ dashboard: queue managers, queues, dead-letter queues, channels |
+| [grafana/dashboards/ibm-mq-overview.json](grafana/dashboards/ibm-mq-overview.json), [ibm-mq-queue-manager.json](grafana/dashboards/ibm-mq-queue-manager.json), [ibm-mq-queue.json](grafana/dashboards/ibm-mq-queue.json) | the IBM MQ dashboards: every queue manager, one queue manager, one queue |
 
 ## Versions
 
