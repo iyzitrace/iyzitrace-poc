@@ -1,0 +1,21 @@
+# /etc/systemd/system/mq_otel@.service: one instance per queue manager, e.g. mq_otel@QM1.
+# The instance name is the name of its file in /etc/mq_otel: QM1 reads /etc/mq_otel/QM1.env.
+[Unit]
+Description=IBM MQ metrics for IyziTrace, queue manager %i
+After=network-online.target otelcol-contrib.service
+Wants=network-online.target
+
+[Service]
+User=mqotel
+Group=mqotel
+EnvironmentFile=/etc/mq_otel/%i.env
+Environment=LD_LIBRARY_PATH=/opt/mqm/lib64
+# The MQ client's own error log goes here, under /var/lib/mq_otel/%i.
+Environment=MQ_OVERRIDE_DATA_PATH=/var/lib/mq_otel/%i
+StateDirectory=mq_otel/%i
+ExecStart=/opt/mq_otel/mq_otel -f=/etc/mq_otel/mq_otel.yaml
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target

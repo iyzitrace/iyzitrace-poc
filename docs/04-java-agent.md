@@ -65,8 +65,11 @@ Every server needs the same three JVM options. Only where you put them differs.
 ```text
 -javaagent:/opt/otel/opentelemetry-javaagent.jar
 -Dotel.javaagent.configuration-file=/opt/otel/otel-agent.properties
--Dotel.javaagent.extensions=/opt/otel/extensions/appserver-deployment-extension.jar
+-Dotel.javaagent.extensions=/opt/otel/extensions
 ```
+
+The agent loads every `.jar` in `/opt/otel/extensions`: the appserver-deployment extension, and the
+IBM MQ extension of [07-ibm-mq.md](07-ibm-mq.md) when the applications use IBM MQ.
 
 **Tomcat 9 or 10.1:** create `$CATALINA_BASE/bin/setenv.sh` with this content. If the file already
 exists, add these lines at the end.
@@ -74,7 +77,7 @@ exists, add these lines at the end.
 ```bash
 CATALINA_OPTS="$CATALINA_OPTS -javaagent:/opt/otel/opentelemetry-javaagent.jar"
 CATALINA_OPTS="$CATALINA_OPTS -Dotel.javaagent.configuration-file=/opt/otel/otel-agent.properties"
-CATALINA_OPTS="$CATALINA_OPTS -Dotel.javaagent.extensions=/opt/otel/extensions/appserver-deployment-extension.jar"
+CATALINA_OPTS="$CATALINA_OPTS -Dotel.javaagent.extensions=/opt/otel/extensions"
 export CATALINA_OPTS
 ```
 
@@ -86,7 +89,7 @@ unit's `Environment="CATALINA_OPTS=..."` line instead.
 ```bash
 JAVA_OPTS="$JAVA_OPTS -javaagent:/opt/otel/opentelemetry-javaagent.jar"
 JAVA_OPTS="$JAVA_OPTS -Dotel.javaagent.configuration-file=/opt/otel/otel-agent.properties"
-JAVA_OPTS="$JAVA_OPTS -Dotel.javaagent.extensions=/opt/otel/extensions/appserver-deployment-extension.jar"
+JAVA_OPTS="$JAVA_OPTS -Dotel.javaagent.extensions=/opt/otel/extensions"
 ```
 
 In domain mode, add the three options as `<option value="..."/>` lines to the server group's

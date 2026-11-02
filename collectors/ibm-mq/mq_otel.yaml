@@ -1,0 +1,73 @@
+# mq_otel (IBM mq-metric-samples v6.0.1) for IyziTrace. One mq_otel process per queue manager.
+#
+#   queue manager --MQ client, read-only user--> mq_otel --OTLP 127.0.0.1:4317--> the collector on
+#   this machine (collectors/linux-host/config.yaml, pipeline "metrics") --> IyziTrace
+#
+# This file is the same for every queue manager. What differs per queue manager (its name, address,
+# channel, user and password file) is in /etc/mq_otel/<QMNAME>.env (see qm.env.example); those
+# values override this file. See docs/07-ibm-mq.md.
+
+global:
+  # Queue and channel status: depth, oldest message, last put and get, channel state.
+  useObjectStatus: true
+  # Never reset the queue statistics: another tool reading them would lose its counts.
+  useResetQStats: false
+  # The queue manager's own metrics and per-queue put/get counts, from its $SYS/MQ publications.
+  usePublications: true
+  useStatistics: false
+  logLevel: INFO
+  pollInterval: 30s
+  # New queues that match the patterns below are picked up within this time.
+  rediscoverInterval: 1h
+
+connection:
+  # Set in /etc/mq_otel/<QMNAME>.env.
+  queueManager:
+  connName:
+  channel:
+  # The model queue for the command server's answers.
+  replyQueue: SYSTEM.DEFAULT.MODEL.QUEUE
+  waitInterval: 3
+
+objects:
+  # Every queue except temporary ones (AMQ.*) and the queue manager's own SYSTEM.* queues, but with
+  # the dead-letter queue SYSTEM.DEAD.LETTER.QUEUE: an excluding pattern always wins over an including
+  # one, so "!SYSTEM.*" would hide it too. Hence one line per group of SYSTEM.* queues.
+  queues:
+    - "*"
+    - "!AMQ.*"
+    - "!SYSTEM.A*"
+    - "!SYSTEM.B*"
+    - "!SYSTEM.C*"
+    - "!SYSTEM.DDELAY*"
+    - "!SYSTEM.DEF*"
+    - "!SYSTEM.DOTNET*"
+    - "!SYSTEM.DURABLE*"
+    - "!SYSTEM.H*"
+    - "!SYSTEM.I*"
+    - "!SYSTEM.J*"
+    - "!SYSTEM.M*"
+    - "!SYSTEM.N*"
+    - "!SYSTEM.P*"
+    - "!SYSTEM.R*"
+    - "!SYSTEM.S*"
+  channels:
+    - "*"
+  topics:
+  subscriptions:
+
+filters:
+  # One series per channel, not one per connection to it.
+  hideSvrConnJobname: true
+  showInactiveChannels: false
+  queueSubscriptionSelector:
+    - PUT
+    - GET
+    - GENERAL
+
+otel:
+  endpoint: 127.0.0.1:4317
+  insecure: true
+  interval: 30s
+  logLevel: INFO
+  maxErrors: 10

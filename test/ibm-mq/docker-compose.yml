@@ -1,0 +1,55 @@
+# The IBM MQ lab: two queue managers and one Linux machine with WildFly, the collector and mq_otel,
+# sending to a running IyziTrace. See README.md in this folder.
+name: iyzitrace-ibm-mq-lab
+
+services:
+  qm1: &qm
+    build:
+      context: ../..
+      dockerfile: test/ibm-mq/mq/Dockerfile
+    image: iyzitrace-poc-ibm-mq:9.4.5.1-r1
+    platform: linux/amd64
+    hostname: qm1
+    environment: &qm-env
+      LICENSE: accept
+      MQ_QMGR_NAME: QM1
+      MQ_CONNAUTH_USE_HTP: "true"
+      MQ_ENABLE_EMBEDDED_WEB_SERVER: "false"
+    secrets: [mqAppPassword, mqAdminPassword]
+    volumes:
+      - qm1-data:/mnt/mqm
+      - ./mq/qm1-channels.mqsc:/etc/mqm/92-channels.mqsc:ro
+
+  qm2:
+    <<: *qm
+    hostname: qm2
+    environment:
+      <<: *qm-env
+      MQ_QMGR_NAME: QM2
+    volumes:
+      - qm2-data:/mnt/mqm
+      - ./mq/qm2-channels.mqsc:/etc/mqm/92-channels.mqsc:ro
+
+  host:
+    build:
+      context: ../..
+      dockerfile: test/ibm-mq/host/Dockerfile
+    image: iyzitrace-poc-ibm-mq-host
+    platform: linux/amd64
+    hostname: poc-mq-01
+    # IYZITRACE_INGEST_URL and IYZITRACE_API_KEY (the department's agent key).
+    env_file: .env
+    secrets: [mqAppPassword]
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    depends_on: [qm1, qm2]
+
+secrets:
+  mqAppPassword:
+    file: ./secrets/mqAppPassword
+  mqAdminPassword:
+    file: ./secrets/mqAdminPassword
+
+volumes:
+  qm1-data:
+  qm2-data:

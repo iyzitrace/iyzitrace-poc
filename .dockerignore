@@ -1,0 +1,4 @@
+.git
+test/ibm-mq/secrets
+test/ibm-mq/apps/**/target
+test/ibm-mq/build/mq-metric-samples

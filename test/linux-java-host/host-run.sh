@@ -52,7 +52,7 @@ echo "== docs/04 step 3: Tomcat setenv.sh"
 cat > /opt/tomcat/bin/setenv.sh <<'SETENV'
 CATALINA_OPTS="$CATALINA_OPTS -javaagent:/opt/otel/opentelemetry-javaagent.jar"
 CATALINA_OPTS="$CATALINA_OPTS -Dotel.javaagent.configuration-file=/opt/otel/otel-agent.properties"
-CATALINA_OPTS="$CATALINA_OPTS -Dotel.javaagent.extensions=/opt/otel/extensions/appserver-deployment-extension.jar"
+CATALINA_OPTS="$CATALINA_OPTS -Dotel.javaagent.extensions=/opt/otel/extensions"
 export CATALINA_OPTS
 SETENV
 
