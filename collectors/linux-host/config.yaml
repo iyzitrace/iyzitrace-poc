@@ -6,7 +6,8 @@
 # Pipelines:
 #   traces, logs   from the Java agent. One service.name per application (not per server), from the
 #                  extension's appserver.deployment.* attributes (see docs/04-java-agent.md, "Service names").
-#   metrics        from the Java agent (jvm.*, http.server.*), per server.
+#   metrics        from the Java agent (jvm.*, http.server.*), per server, and from mq_otel (IBM MQ,
+#                  docs/07-ibm-mq.md), per queue manager.
 #   metrics/host   CPU, memory, disk, filesystem, network, load, paging and processes of this host.
 #
 # The collector registers with IyziTrace's Agent Manager over OpAMP and sends its own metrics and logs
@@ -88,6 +89,17 @@ processors:
     check_interval: 5s
     limit_percentage: 80
     spike_limit_percentage: 25
+
+  # IyziTrace stores counters as running totals. A sender that reports only the change since its
+  # last report (delta), such as IBM MQ's mq_otel (docs/07-ibm-mq.md), is turned into running
+  # totals here; running totals pass unchanged.
+  delta_to_cumulative: {}
+
+  # mq_otel (docs/07-ibm-mq.md) puts the queue manager's address, iyzitrace.service.address, on
+  # every data point. IyziTrace reads it from the resource, to link the queue manager's metrics to
+  # the queue manager its applications call: one resource per queue manager.
+  groupbyattrs/ibmmq:
+    keys: [iyzitrace.service.address]
 
   # host.name, host.id, os.* for the host metrics, so they match the agent's data from this host
   # (the Java agent sets host.name too). env reads OTEL_RESOURCE_ATTRIBUTES, if set.
@@ -183,7 +195,7 @@ service:
       exporters: [otlp_http/iyzitrace]
     metrics:
       receivers: [otlp]
-      processors: [memory_limiter]
+      processors: [memory_limiter, groupbyattrs/ibmmq, delta_to_cumulative]
       exporters: [otlp_http/iyzitrace]
     metrics/host:
       receivers: [host_metrics]

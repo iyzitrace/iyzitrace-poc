@@ -31,8 +31,9 @@ Other platforms and languages will be added the same way.
    and the plugin in Grafana
 4. [Collector on each Linux machine](docs/03-linux-collector.md)
 5. [Java agent on each Java server](docs/04-java-agent.md)
-6. [Check that everything works](docs/05-verify.md)
-7. [When something does not work](docs/06-troubleshooting.md)
+6. [IBM MQ queue managers](docs/07-ibm-mq.md), when the applications use IBM MQ
+7. [Check that everything works](docs/05-verify.md)
+8. [When something does not work](docs/06-troubleshooting.md)
 
 Every step is written as commands you can copy. The few files you need are in this repository and
 are downloaded in the steps:
@@ -45,6 +46,9 @@ are downloaded in the steps:
 | [collectors/linux-host/config.yaml](collectors/linux-host/config.yaml) | the collector's configuration, the same on every machine |
 | [collectors/linux-host/otelcol-contrib.conf.example](collectors/linux-host/otelcol-contrib.conf.example) | the values that differ per machine: address, key, name |
 | [instrumentation/java/otel-agent.properties](instrumentation/java/otel-agent.properties) | the Java agent's settings |
+| [collectors/ibm-mq/monitor-authorities.mqsc](collectors/ibm-mq/monitor-authorities.mqsc) | the read-only authorities of the IBM MQ monitoring user, run on each queue manager |
+| [collectors/ibm-mq/mq_otel.yaml](collectors/ibm-mq/mq_otel.yaml), [qm.env.example](collectors/ibm-mq/qm.env.example), [mq_otel@.service](collectors/ibm-mq/mq_otel@.service) | IBM's MQ exporter: its settings (the same for every queue manager), the values per queue manager, and its systemd service |
+| [grafana/dashboards/ibm-mq.json](grafana/dashboards/ibm-mq.json) | the IBM MQ dashboard: queue managers, queues, dead-letter queues, channels |
 
 ## Versions
 
@@ -56,6 +60,9 @@ are downloaded in the steps:
 | Grafana (kit): chart `grafana-community/grafana` | `14.0.1`, Grafana 13.1.1; IyziTrace plugin 1.3.1 from the `dev` branch at `de49fe9f` (release `grafana-plugin-dev.de49fe9`), Infinity 4.1.1, Plotly panel 0.5.0 |
 | OpenTelemetry Java agent | 2.21.0 |
 | iyzitrace appserver-deployment extension | 0.1.0 ([source](https://github.com/antreklabs/iyzitrace-otel-java-extensions)) |
+| IBM MQ exporter mq_otel ([mq-metric-samples](https://github.com/ibm-messaging/mq-metric-samples)) | v6.0.1 |
+| IBM MQ redistributable client | 10.0.1.0 |
+| iyzitrace ibm-mq extension | 0.2.0 ([source](https://github.com/antreklabs/iyzitrace-otel-java-extensions)) |
 
 ## What was tested
 
@@ -71,6 +78,16 @@ On 2026-10-19, the published charts above with cert-manager installed through He
 `values.yaml`: every container of cert-manager, the operators and the platform (45 + 3 + 3) has CPU
 and memory requests and limits, 33 of 33 platform pods run, the automated test passes, and no pod was
 restarted or killed for memory.
+
+On 2026-11-02, [docs/07-ibm-mq.md](docs/07-ibm-mq.md) on a Rocky Linux 8.10 machine with WildFly 41
+and two applications carrying the IBM MQ JMS client 9.4.1.0, against two IBM MQ 9.4.5.1 developer
+queue managers joined by a sender and receiver channel ([test/ibm-mq](test/ibm-mq/README.md)).
+mq_otel ran with only the authorities of `monitor-authorities.mqsc`, and the queue managers logged no
+authority error. Every query of the dashboard returned data through Grafana. With the IBM MQ
+extension, every send, receive and process span carried its own queue manager's address, IyziTrace
+showed the two queue managers as two brokers, and both became monitored from mq_otel's metrics. Not covered there: the
+monitoring channel with a password (the developer image checks passwords only for its own users)
+and queue managers of version 9.2.
 
 Details are at the end of the [platform guide](platform/kubernetes/README.md#what-was-tested-before-the-first-openshift-poc),
 and the Linux test is in [test/linux-java-host](test/linux-java-host/README.md).

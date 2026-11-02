@@ -1,0 +1,23 @@
+* The lab's queues. Both queue managers get all of them; the applications use ORDER.REQUEST on QM1,
+* PAYMENT.REQUEST and BILLING.REQUEST on QM2.
+DEFINE QLOCAL('ORDER.REQUEST') REPLACE
+DEFINE QLOCAL('PAYMENT.REQUEST') REPLACE
+DEFINE QLOCAL('BILLING.REQUEST') MAXDEPTH(100000) REPLACE
+
+* The dead-letter queue under its usual name.
+ALTER QMGR DEADQ('SYSTEM.DEAD.LETTER.QUEUE')
+
+* Queue and channel monitoring: the oldest message's age and the last put and get times need it.
+ALTER QMGR MONQ(MEDIUM) MONCHL(MEDIUM)
+
+* The applications' user (app, password from the mqAppPassword secret).
+SET AUTHREC PROFILE('ORDER.**') PRINCIPAL('app') OBJTYPE(QUEUE) AUTHADD(GET, PUT, INQ, BROWSE)
+SET AUTHREC PROFILE('PAYMENT.**') PRINCIPAL('app') OBJTYPE(QUEUE) AUTHADD(GET, PUT, INQ, BROWSE)
+SET AUTHREC PROFILE('BILLING.**') PRINCIPAL('app') OBJTYPE(QUEUE) AUTHADD(GET, PUT, INQ, BROWSE)
+SET AUTHREC PROFILE('SYSTEM.DEAD.LETTER.QUEUE') PRINCIPAL('app') OBJTYPE(QUEUE) AUTHADD(PUT, INQ)
+
+* The monitoring channel. Lab only: a connection on it runs as iyzmon without a password, because
+* the developer image checks passwords for app and admin only. At the customer the channel asks for
+* iyzmon's password (docs/07-ibm-mq.md, step 1).
+DEFINE CHANNEL('IYZI.MON.SVRCONN') CHLTYPE(SVRCONN) TRPTYPE(TCP) DESCR('IyziTrace read-only monitoring') REPLACE
+SET CHLAUTH('IYZI.MON.SVRCONN') TYPE(ADDRESSMAP) ADDRESS('*') USERSRC(MAP) MCAUSER('iyzmon') CHCKCLNT(ASQMGR) DESCR('Lab: monitoring as iyzmon') ACTION(REPLACE)

@@ -3,3 +3,6 @@
 *.lic
 *state*.json
 *.pem
+test/ibm-mq/secrets/
+test/ibm-mq/build/
+test/ibm-mq/apps/**/target/
