@@ -60,7 +60,7 @@ are downloaded in the steps:
 | Grafana (kit): chart `grafana-community/grafana` | `14.0.1`, Grafana 13.1.1; IyziTrace plugin 1.3.1 from the `dev` branch at `de49fe9f` (release `grafana-plugin-dev.de49fe9`), Infinity 4.1.1, Plotly panel 0.5.0 |
 | OpenTelemetry Java agent | 2.21.0 |
 | iyzitrace appserver-deployment extension | 0.1.0 ([source](https://github.com/antreklabs/iyzitrace-otel-java-extensions)) |
-| IBM MQ metrics image (`ghcr.io/antreklabs/ibm-mq-metrics`) | `dev-c1139e5f2ae5e7164ffef09dba8d16c8ce5b8f94`: OpenTelemetry [ibm-mq-metrics](https://github.com/open-telemetry/opentelemetry-java-contrib/tree/main/ibm-mq-metrics) 1.61.0-alpha and IBM's MQ Java client 10.0.0.5 (built from the platform's `ibm-mq-metrics/`) |
+| IBM MQ metrics image (`ghcr.io/antreklabs/ibm-mq-metrics`) | `dev-c97d56dab294d8e2757d579fecd48ceedf68803a`: OpenTelemetry [ibm-mq-metrics](https://github.com/open-telemetry/opentelemetry-java-contrib/tree/main/ibm-mq-metrics) 1.61.0-alpha and IBM's MQ Java client 10.0.0.5 (built from the platform's `ibm-mq-metrics/`, with its patch that sends no statistics reset and no event queue read) |
 | iyzitrace ibm-mq extension | 0.2.0 ([source](https://github.com/antreklabs/iyzitrace-otel-java-extensions)) |
 
 ## What was tested

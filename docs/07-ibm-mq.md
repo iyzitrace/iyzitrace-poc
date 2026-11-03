@@ -69,7 +69,7 @@ affected.
 On the collector's machine, as root:
 
 ```bash
-docker pull ghcr.io/antreklabs/ibm-mq-metrics:dev-c1139e5f2ae5e7164ffef09dba8d16c8ce5b8f94
+docker pull ghcr.io/antreklabs/ibm-mq-metrics:dev-c97d56dab294d8e2757d579fecd48ceedf68803a
 mkdir -p /etc/ibm-mq-metrics
 curl -fLo /etc/ibm-mq-metrics/config.yml https://raw.githubusercontent.com/iyzitrace/iyzitrace-poc/main/collectors/ibm-mq/config.yml
 vi /etc/ibm-mq-metrics/config.yml
@@ -92,7 +92,7 @@ chown 65532 /etc/ibm-mq-metrics/config.yml
 chmod 600 /etc/ibm-mq-metrics/config.yml
 docker run -d --name ibm-mq-metrics --restart unless-stopped --network host \
   -v /etc/ibm-mq-metrics/config.yml:/etc/ibm-mq-metrics/config.yml:ro \
-  ghcr.io/antreklabs/ibm-mq-metrics:dev-c1139e5f2ae5e7164ffef09dba8d16c8ce5b8f94
+  ghcr.io/antreklabs/ibm-mq-metrics:dev-c97d56dab294d8e2757d579fecd48ceedf68803a
 docker logs ibm-mq-metrics 2>&1 | grep "Active Channels"
 ```
 
