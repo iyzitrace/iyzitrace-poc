@@ -1,283 +1,331 @@
-# 7. IBM MQ runbook
+# 7. IBM MQ
 
-What the customer gets, for every queue manager:
-
-- its health in Grafana: status, queue depths, the oldest message on each queue, the dead-letter
-  queue and the channels between queue managers, on three dashboards;
-- in IyziTrace, each queue manager as its own broker, linked to the applications that send to it
-  and read from it.
-
-How the data flows:
+For every queue manager, three Grafana dashboards show its status, its queues (depth, oldest
+message) and dead-letter queue, and its channels. IyziTrace shows each queue manager as a broker
+with the applications that use it.
 
 ```text
- queue manager QM1 ──MQ client, user iyzmon, channel IYZI.MON.SVRCONN──► mq_otel@QM1 ─┐
- queue manager QM2 ──────────────────────────────────────────────────────► mq_otel@QM2 ─┼─► collector ──► IyziTrace
- ...                                                                                    ┘   127.0.0.1:4317
- WildFly + Java agent + IBM MQ extension (JMS spans with the queue manager's host:port) ────► collector
+ QM1, QM2, ... ◄── user iyzmon, channel IYZI.MON.SVRCONN ── ibm-mq-metrics container ──► collector ──► IyziTrace
+                                                            (one, on the collector's machine)   ▲
+ WildFly + Java agent + IBM MQ extension ───────────────────────────────────────────────────────┘
 ```
 
-**mq_otel** is IBM's exporter, from
-[mq-metric-samples](https://github.com/ibm-messaging/mq-metric-samples) v6.0.1 (Apache-2.0). One
-mq_otel runs per queue manager, all of them on the collector's machine of
-[03-linux-collector.md](03-linux-collector.md). It connects as a client with a read-only user, so
-nothing is installed on the queue managers' hosts.
+Nothing is installed on the queue managers' hosts.
 
-| Phase | Who | Where | Takes |
-|---|---|---|---|
-| [0. Before you start](#0-before-you-start) | IyziTrace + customer | — | one meeting |
-| [1. Read-only user](#1-a-read-only-user-on-each-queue-manager) | MQ administrator | each queue manager | 10 min per queue manager |
-| [2. Build mq_otel](#2-build-mq_otel-once) | IyziTrace | any machine with Docker or Podman | 15 min, once |
-| [3. mq_otel](#3-mq_otel-on-the-collectors-machine) | Linux administrator | the collector's machine | 30 min, then 2 min per queue manager |
-| [4. Java servers](#4-the-ibm-mq-extension-on-the-java-servers) | application server administrator | each Java server that uses IBM MQ | 5 min and a restart |
-| [5. Dashboards](#5-the-dashboards) | Grafana administrator | Grafana | 5 min |
-| [6. Acceptance](#6-acceptance) | IyziTrace + customer | Grafana, IyziTrace | 15 min |
-
-## 0. Before you start
-
-| Check | How | Expected |
+| Step | Who | Takes |
 |---|---|---|
-| The collector runs on the machine that will host mq_otel | `systemctl is-active otelcol-contrib` | `active` ([03-linux-collector.md](03-linux-collector.md)) |
-| That machine reaches every queue manager's listener | `timeout 3 bash -c '</dev/tcp/mq-host-01.example/1414' && echo open`, once per queue manager | `open` |
-| The Java servers run the agent | `grep "opentelemetry-javaagent - version" $JBOSS_HOME/standalone/log/server.log` | a version line ([04-java-agent.md](04-java-agent.md)) |
-| The MQ team agrees to a read-only user and a channel per queue manager | phase 1 shows exactly what they add | yes |
-| Queue monitoring is on (oldest message, last get) | `echo "DISPLAY QMGR MONQ" \| runmqsc QM1` | `MONQ(MEDIUM)`, `LOW` or `HIGH` |
-| A machine with Docker or Podman and internet, for phase 2 | `docker version` | a version |
+| [1. The monitoring user](#1-the-monitoring-user) | MQ administrator, on each queue manager | 10 min each |
+| [2. The container](#2-the-container) | Linux administrator, on the collector's machine | 15 min |
+| [3. The Java servers](#3-the-java-servers) | application server administrator | 5 min and a restart |
+| [4. The dashboards](#4-the-dashboards) | Grafana administrator | 5 min |
 
-Then fill in one row per queue manager. Every later phase reads its values from here.
+You need a machine with Docker, usually the one with the collector of
+[03-linux-collector.md](03-linux-collector.md), and it must reach every queue manager's port:
+`timeout 3 bash -c '</dev/tcp/mq-host-01.example/1414' && echo open`.
 
-| Queue manager | Host | Port | Host and port as the applications name them | Phase 1 | Phase 3 | Running |
-|---|---|---|---|---|---|---|
-| QM1 | mq-host-01.example | 1414 | mq-host-01.example:1414 | | | |
+## 1. The monitoring user
 
-The fourth column is what the applications put in their own connection to the queue manager. It
-can differ from the host mq_otel uses (an alias, a load balancer). IyziTrace links a queue
-manager's metrics to the applications' messages only when the two are equal.
+The container connects to every queue manager as one MQ user. On each queue manager that user needs
+these authorities, and no more:
 
-## 1. A read-only user on each queue manager
+| Object | Authorities | Why |
+|---|---|---|
+| the queue manager | connect, inquire, display | connect and read its status |
+| every queue (`**`) | inquire, display | depth, oldest message, time on queue |
+| every channel (`**`) | display | channel status |
+| every client-connection channel (`**`) | display | channel status |
+| `SYSTEM.ADMIN.COMMAND.QUEUE` | put, inquire, display | send DISPLAY commands |
+| `SYSTEM.DEFAULT.MODEL.QUEUE` | get, inquire, display | receive their answers on a temporary queue |
 
-On the queue manager's host, as root: an operating-system group `iyzmon` and a user in it, with a
-password. If the queue managers check passwords against LDAP, create the user there instead.
+With them the user cannot read, put or remove application messages, or change any object.
 
-```bash
-groupadd iyzmon
-useradd -g iyzmon -s /sbin/nologin iyzmon
-passwd iyzmon
-```
+Do you already have a monitoring user for MQ? Follow **A**. If not, follow **B**.
 
-As an MQ administrator, the authorities. The group can connect, display and inquire, send DISPLAY
-commands and read the queue manager's own metrics. It cannot read, put or remove any application
-message.
+### A. You have a monitoring user
 
-```bash
-curl -fLO https://raw.githubusercontent.com/iyzitrace/iyzitrace-poc/main/collectors/ibm-mq/monitor-authorities.mqsc
-runmqsc QM1 < monitor-authorities.mqsc
-```
+On each queue manager, as an MQ administrator:
 
-It ends with `7 MQSC commands read.` and `No commands have a syntax error.`
+1. Give the user's group the authorities. In `runmqsc QM1`, with your group's name in place of
+   `<group>`:
 
-The channel mq_otel connects through. It accepts only the collector's machine, and only with
-`iyzmon`'s password. In `runmqsc QM1`, with the collector machine's IP address:
+   ```text
+   SET AUTHREC OBJTYPE(QMGR) GROUP('<group>') AUTHADD(CONNECT, INQ, DSP)
+   SET AUTHREC PROFILE('SYSTEM.ADMIN.COMMAND.QUEUE') OBJTYPE(QUEUE) GROUP('<group>') AUTHADD(PUT, INQ, DSP)
+   SET AUTHREC PROFILE('SYSTEM.DEFAULT.MODEL.QUEUE') OBJTYPE(QUEUE) GROUP('<group>') AUTHADD(GET, INQ, DSP)
+   SET AUTHREC PROFILE('**') OBJTYPE(QUEUE) GROUP('<group>') AUTHADD(INQ, DSP)
+   SET AUTHREC PROFILE('**') OBJTYPE(CHANNEL) GROUP('<group>') AUTHADD(DSP)
+   SET AUTHREC PROFILE('**') OBJTYPE(CLNTCONN) GROUP('<group>') AUTHADD(DSP)
+   ```
 
-```text
-DEFINE CHANNEL('IYZI.MON.SVRCONN') CHLTYPE(SVRCONN) TRPTYPE(TCP) DESCR('IyziTrace read-only monitoring') REPLACE
-SET CHLAUTH('IYZI.MON.SVRCONN') TYPE(ADDRESSMAP) ADDRESS('10.0.0.15') USERSRC(CHANNEL) CHCKCLNT(REQUIRED) DESCR('IyziTrace monitoring') ACTION(REPLACE)
-```
+   These only add authorities; what the user already has stays. If your queue managers grant
+   authorities to users, not groups (`SecurityPolicy=user` in `qm.ini`), write
+   `PRINCIPAL('<user>')` instead of `GROUP('<group>')`.
 
-If your client channels use TLS, mq_otel needs a CCDT instead of an address; ask us.
+2. The channel. If the user already connects through a server-connection channel of its own, keep
+   it. Otherwise create one, open only to the collector machine's IP address (in `runmqsc QM1`):
 
-If `DISPLAY QMGR MONQ` showed `OFF` in phase 0:
+   ```text
+   DEFINE CHANNEL('IYZI.MON.SVRCONN') CHLTYPE(SVRCONN) TRPTYPE(TCP) DESCR('IyziTrace monitoring') REPLACE
+   SET CHLAUTH('IYZI.MON.SVRCONN') TYPE(ADDRESSMAP) ADDRESS('10.0.0.15') USERSRC(CHANNEL) CHCKCLNT(REQUIRED) DESCR('IyziTrace monitoring') ACTION(REPLACE)
+   ```
 
-```text
-ALTER QMGR MONQ(MEDIUM)
-```
+3. Note the user's name, its password and the channel's name: step 2 needs them.
 
-**Check:** `echo "DISPLAY AUTHREC GROUP('iyzmon')" | runmqsc QM1` lists the profiles
-`SYSTEM.ADMIN.COMMAND.QUEUE`, `SYSTEM.DEFAULT.MODEL.QUEUE`, `**` (queue, channel and clntconn) and
-`SYSTEM.ADMIN.TOPIC`.
+### B. You have no monitoring user
 
-Repeat for every queue manager, and tick **Phase 1** in the table.
+1. On each queue manager's host, as root, create the group and the user `iyzmon` (with LDAP,
+   create them there instead):
 
-## 2. Build mq_otel (once)
+   ```bash
+   groupadd iyzmon
+   useradd -g iyzmon -s /sbin/nologin iyzmon
+   passwd iyzmon
+   ```
 
-IBM publishes mq_otel as source only. Build it once, on any Linux or macOS machine with Docker and
-internet access (with Podman, write `podman` for `docker`):
+2. On each queue manager, as an MQ administrator, give `iyzmon` the authorities.
+   [monitor-authorities.mqsc](../collectors/ibm-mq/monitor-authorities.mqsc) holds the six
+   commands of A.1 for the group `iyzmon`:
 
-```bash
-git clone --depth 1 --branch v6.0.1 https://github.com/ibm-messaging/mq-metric-samples.git
-cd mq-metric-samples
-docker build --platform linux/amd64 -f Dockerfile.build -t mq-metric-samples-gobuild:6.0.1 .
-mkdir -p out
-docker run --rm --platform linux/amd64 -e MONITORS=mq_otel -v "$PWD/out:/go/out" mq-metric-samples-gobuild:6.0.1
-```
+   ```bash
+   curl -fLO https://raw.githubusercontent.com/iyzitrace/iyzitrace-poc/main/collectors/ibm-mq/monitor-authorities.mqsc
+   runmqsc QM1 < monitor-authorities.mqsc
+   ```
 
-**Check:** `file out/mq_otel` says `ELF 64-bit LSB executable, x86-64`. Copy it to `/tmp/mq_otel` on
-the collector's machine.
+   It ends with `6 MQSC commands read.`
 
-## 3. mq_otel on the collector's machine
+3. Create the channel, open only to the collector machine's IP address (in `runmqsc QM1`):
 
-As root.
+   ```text
+   DEFINE CHANNEL('IYZI.MON.SVRCONN') CHLTYPE(SVRCONN) TRPTYPE(TCP) DESCR('IyziTrace monitoring') REPLACE
+   SET CHLAUTH('IYZI.MON.SVRCONN') TYPE(ADDRESSMAP) ADDRESS('10.0.0.15') USERSRC(CHANNEL) CHCKCLNT(REQUIRED) DESCR('IyziTrace monitoring') ACTION(REPLACE)
+   ```
 
-**The MQ client libraries**, in mq_otel's own folder, so that an IBM MQ already installed on the
-machine (in `/opt/mqm`) is not touched. This is IBM's redistributable MQ client; it connects to queue
-managers of any supported version.
+### Then, in both cases
 
-```bash
-mkdir -p /opt/mq_otel/mqclient
-cd /opt/mq_otel/mqclient
-curl -fLO https://public.dhe.ibm.com/ibmdl/export/pub/software/websphere/messaging/mqdev/redist/10.0.1.0-IBM-MQC-Redist-LinuxX64.tar.gz
-echo "f8f467d5e42001cc5cbe780b07d971fd2b0850de321753c4814ceced5248915e  10.0.1.0-IBM-MQC-Redist-LinuxX64.tar.gz" | sha256sum -c -
-tar -xzf 10.0.1.0-IBM-MQC-Redist-LinuxX64.tar.gz
-rm 10.0.1.0-IBM-MQC-Redist-LinuxX64.tar.gz
-```
+- If `echo "DISPLAY QMGR MONQ" | runmqsc QM1` shows `MONQ(OFF)`, run `ALTER QMGR MONQ(MEDIUM)`:
+  the oldest message needs it.
+- **Check:** `echo "DISPLAY AUTHREC GROUP('<group>')" | runmqsc QM1` (`iyzmon` in B) lists the
+  profiles of the table: `SYSTEM.ADMIN.COMMAND.QUEUE`, `SYSTEM.DEFAULT.MODEL.QUEUE` and `**`.
+- Repeat on every queue manager. With TLS channels, ask us.
 
-**mq_otel, its user, its settings and its service:**
+## 2. The container
 
-```bash
-useradd -r -m -d /var/lib/mq_otel -s /sbin/nologin mqotel
-install -D -m 0755 /tmp/mq_otel /opt/mq_otel/mq_otel
-mkdir -p /etc/mq_otel
-curl -fLo /etc/mq_otel/mq_otel.yaml https://raw.githubusercontent.com/iyzitrace/iyzitrace-poc/main/collectors/ibm-mq/mq_otel.yaml
-curl -fLo /etc/systemd/system/mq_otel@.service https://raw.githubusercontent.com/iyzitrace/iyzitrace-poc/main/collectors/ibm-mq/mq_otel@.service
-systemctl daemon-reload
-```
-
-Without internet, copy the files from this repository's `collectors/ibm-mq/` folder to the same
-places.
-
-`mq_otel.yaml` is the same for every queue manager. It monitors every queue except temporary ones
-(`AMQ.*`) and the queue manager's own `SYSTEM.*` queues, but with the dead-letter queue
-`SYSTEM.DEAD.LETTER.QUEUE`. If your dead-letter queue has another name that starts with `SYSTEM.`,
-check that none of the `"!SYSTEM...` lines there matches it.
-
-**The collector.** Nothing to change when it uses this repository's `config.yaml` (step 3 of
-[03-linux-collector.md](03-linux-collector.md)). If it has its own configuration, its `metrics`
-pipeline needs the two processors this repository's file has there:
-
-- `delta_to_cumulative`: mq_otel reports its counters as the change since its last report, and
-  IyziTrace keeps only running totals. Without it the put and get counts never arrive.
-- `groupbyattrs/ibmmq`: it moves the queue manager's address (the table's fourth column) to where
-  IyziTrace reads it.
-
-**For each queue manager**, with the values of its row in the table. For `QM1`:
+On the collector's machine, as root:
 
 ```bash
-curl -fLo /etc/mq_otel/QM1.env https://raw.githubusercontent.com/iyzitrace/iyzitrace-poc/main/collectors/ibm-mq/qm.env.example
-vi /etc/mq_otel/QM1.env
+docker pull ghcr.io/antreklabs/ibm-mq-metrics:dev-c97d56dab294d8e2757d579fecd48ceedf68803a
+mkdir -p /etc/ibm-mq-metrics
+curl -fLo /etc/ibm-mq-metrics/config.yml https://raw.githubusercontent.com/iyzitrace/iyzitrace-poc/main/collectors/ibm-mq/config.yml
+vi /etc/ibm-mq-metrics/config.yml
 ```
 
-Change these lines:
+The file has one block per queue manager. Copy a block for each one and change its first four
+lines:
 
-```text
-IBMMQ_CONNECTION_QUEUEMANAGER=QM1
-IBMMQ_CONNECTION_CONNNAME='mq-host-01.example(1414)'
-IBMMQ_CONNECTION_PASSWORDFILE=/etc/mq_otel/QM1.pw
-IBMMQ_CONNECTION_METADATAVALUES=mq-host-01.example:1414
+```yaml
+  - name: "QM1"
+    host: "mq-host-01.example"
+    port: 1414
+    password: "<the user's password>"
 ```
 
-Keep the quotes around the address in `CONNNAME`. `METADATAVALUES` is the table's fourth column.
-Then `iyzmon`'s password, alone on the first line of its file, and the service:
+In A, also change `username` (the user's name) and `channelName` (if it keeps its own channel) in
+each block.
+
+**Which collector.** The container sends to the collector on the same machine, with OTLP gRPC on
+`127.0.0.1:4317`, which the collector of docs/03 already listens on. If your collector is elsewhere,
+or takes OTLP only over HTTP, add its address to the `docker run` below, after `--network host`
+(what your own collector needs: [Your own collector](#your-own-collector)):
+
+| Your collector | Add to `docker run` |
+|---|---|
+| this machine, `127.0.0.1:4317` (docs/03) | nothing |
+| another machine or port, OTLP gRPC | `-e OTEL_EXPORTER_OTLP_ENDPOINT=http://<collector>:4317` |
+| OTLP over HTTP | `-e OTEL_EXPORTER_OTLP_ENDPOINT=http://<collector>:4318 -e OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf` |
+
+Recommended, your choice: the file holds the user's password, readable by every user of this
+machine as it is. To keep it to the container alone (it runs as user 65532):
 
 ```bash
-install -m 0600 -o mqotel -g mqotel /dev/null /etc/mq_otel/QM1.pw
-vi /etc/mq_otel/QM1.pw
-chown root:mqotel /etc/mq_otel/QM1.env
-chmod 640 /etc/mq_otel/QM1.env
-systemctl enable --now mq_otel@QM1
-journalctl -u mq_otel@QM1 -n 20 --no-pager
+chown 65532 /etc/ibm-mq-metrics/config.yml
+chmod 600 /etc/ibm-mq-metrics/config.yml
 ```
 
-**Check:** the log shows `Connected to queue manager  QM1`, and the queue manager's error log has
-no `AMQ8077W` or `AMQ8245W` for `iyzmon`. Tick **Phase 3**.
-
-## 4. The IBM MQ extension on the Java servers
-
-The Java agent's JMS spans name the queue but not the queue manager. The extension adds the queue
-manager's host and port. On every Java server that uses IBM MQ, next to the agent of
-[04-java-agent.md](04-java-agent.md):
+Then start it:
 
 ```bash
-cd /opt/otel
-curl -fLo extensions/ibm-mq-extension.jar https://github.com/antreklabs/iyzitrace-otel-java-extensions/releases/download/v0.2.0/ibm-mq-extension-0.2.0.jar
-echo "7efa3024b25055174a138d9b76fb892efa3e6f9efbdddb656172864b6fad6fd8  extensions/ibm-mq-extension.jar" | sha256sum -c -
+docker run -d --name ibm-mq-metrics --restart unless-stopped --network host \
+  -v /etc/ibm-mq-metrics/config.yml:/etc/ibm-mq-metrics/config.yml:ro \
+  ghcr.io/antreklabs/ibm-mq-metrics:dev-c97d56dab294d8e2757d579fecd48ceedf68803a
+docker logs ibm-mq-metrics 2>&1 | grep "Active Channels"
 ```
 
-The agent loads it from the extensions folder (step 3 of [04-java-agent.md](04-java-agent.md)).
-Restart the server the way you normally do. The applications need no change.
+**Check:** within a minute, one line `Active Channels in queueManager QM1 are [...]` per queue
+manager.
 
-**Check:** after a few messages, IyziTrace shows the applications' `send queue:///<QUEUE>` and
-`process queue:///<QUEUE>` operations, and one broker per queue manager, named
+Without internet on this machine: `docker pull` on one that has it, `docker save <image> -o
+ibm-mq-metrics.tar`, copy the file over, `docker load -i ibm-mq-metrics.tar`.
+
+## Your own collector
+
+Only when the container and the Java servers send to a collector of your own, not the one of
+[03-linux-collector.md](03-linux-collector.md). Nothing IBM MQ-specific is added to it: it receives
+OTLP and passes the data on to IyziTrace unchanged.
+
+| The collector needs | For |
+|---|---|
+| an OTLP receiver the container reaches: gRPC (4317) or HTTP (4318) | the container's metrics (step 2, "Which collector") |
+| a `metrics` pipeline from that receiver to IyziTrace | the dashboards |
+| a `traces` pipeline from the Java agents to IyziTrace | the brokers per queue manager |
+| `server.address` and `server.port` kept on the spans | the IBM MQ extension's attributes: a processor that drops them merges every queue manager into one broker `jms` |
+| `ibm.mq.queue.manager`, `messaging.destination.name`, `ibm.mq.channel.name` and `ibm.mq.channel.type` kept on the metrics | the dashboards group by them |
+
+If your collector already sends metrics and traces to IyziTrace, check only that its OTLP receiver
+listens where the container sends. Otherwise add these parts to its configuration (names as in
+docs/03, collector 0.159; older collectors call the exporter `otlphttp`):
+
+```yaml
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 127.0.0.1:4317
+
+exporters:
+  otlp_http/iyzitrace:
+    endpoint: https://<iyzitrace-host>/ingest/otlp
+    headers:
+      Authorization: Bearer <the department's agent key>
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      exporters: [otlp_http/iyzitrace]
+    traces:
+      receivers: [otlp]
+      exporters: [otlp_http/iyzitrace]
+```
+
+A receiver on `127.0.0.1` takes only what runs on the same machine. If the container runs on
+another machine, write the collector machine's address or `0.0.0.0`, open the port in its firewall
+for that machine only, and set `OTEL_EXPORTER_OTLP_ENDPOINT` in step 2.
+
+## 3. The Java servers
+
+On every Java server that uses IBM MQ:
+
+1. Download the extension into the agent's extensions folder (`/opt/otel/extensions` with the agent
+   of [04-java-agent.md](04-java-agent.md)):
+
+   ```bash
+   mkdir -p /opt/otel/extensions
+   cd /opt/otel
+   curl -fLo extensions/ibm-mq-extension.jar https://github.com/antreklabs/iyzitrace-otel-java-extensions/releases/download/v0.2.0/ibm-mq-extension-0.2.0.jar
+   echo "7efa3024b25055174a138d9b76fb892efa3e6f9efbdddb656172864b6fad6fd8  extensions/ibm-mq-extension.jar" | sha256sum -c -
+   ```
+
+2. Make the agent load it:
+   - **The server already loads an extension** (for example the appserver-deployment extension of
+     docs/04): if its JVM option `-Dotel.javaagent.extensions` names the folder, there is nothing to
+     do. If it names a single `.jar`, put that jar in the folder too and change the option to the
+     folder, `/opt/otel/extensions`.
+   - **The server loads no extension yet:** add `-Dotel.javaagent.extensions=/opt/otel/extensions`
+     to its JVM options, next to `-javaagent` (WildFly: `JAVA_OPTS` in `standalone.conf`; Tomcat:
+     `CATALINA_OPTS` in `setenv.sh`).
+
+3. Restart the server.
+
+**Check:** after a few messages, IyziTrace shows one broker per queue manager,
 `jms://<host>:<port>`, instead of a single broker `jms`.
 
-## 5. The dashboards
+## 4. The dashboards
 
-In Grafana, for each of the three files: Dashboards, New, Import, upload the file, Import.
+In Grafana, Dashboards, New, Import, once for each file:
+[ibm-mq-overview.json](../grafana/dashboards/ibm-mq-overview.json),
+[ibm-mq-queue-manager.json](../grafana/dashboards/ibm-mq-queue-manager.json),
+[ibm-mq-queue.json](../grafana/dashboards/ibm-mq-queue.json).
 
-| File | Shows |
+Open **IBM MQ - Overview** and choose the department. A click on a queue manager or a queue opens
+its own dashboard.
+
+**Check:**
+
+- every queue manager has a row, **Running**, and **Not reporting** is 0;
+- a queue's depth and oldest message match `echo "DISPLAY QSTATUS(<QUEUE>) CURDEPTH MSGAGE" | runmqsc QM1`, give or take a minute;
+- after `docker stop ibm-mq-metrics`, **Not reporting** counts every queue manager within 3 minutes;
+  `docker start ibm-mq-metrics` brings them back.
+
+## Later
+
+| Task | What to do |
 |---|---|
-| [ibm-mq-overview.json](../grafana/dashboards/ibm-mq-overview.json) | every queue manager: what needs attention now (not running, not reporting, channels down, dead letters, queues over 80% full, messages older than 5 minutes), one row per queue manager, status history, deepest queues, oldest messages, channels |
-| [ibm-mq-queue-manager.json](../grafana/dashboards/ibm-mq-queue-manager.json) | one queue manager: workload, failed calls, CPU, memory, disk, recovery log, its queues and channels |
-| [ibm-mq-queue.json](../grafana/dashboards/ibm-mq-queue.json) | one queue: depth, oldest message, time on queue, puts and gets, bytes, expired and rolled back |
-
-Start at **IBM MQ - Overview** and choose the department at the top. A click on a queue manager or a
-queue opens its own dashboard. If the dead-letter queue is not `SYSTEM.DEAD.LETTER.QUEUE`, write its
-name in **Dead-letter queue**.
-
-## 6. Acceptance
-
-| Check | Where | Expected |
-|---|---|---|
-| Every queue manager reports | IBM MQ - Overview | one row per queue manager in the table, all **Running**; **Not reporting** 0 |
-| Depths are right | a queue manager's dashboard, and `echo "DISPLAY QLOCAL(<QUEUE>) CURDEPTH" \| runmqsc QM1` | the same depth, give or take a minute |
-| Dead letters are right | IBM MQ - Overview, **Dead letters** column; `echo "DISPLAY QLOCAL(SYSTEM.DEAD.LETTER.QUEUE) CURDEPTH" \| runmqsc QM1` | the same number |
-| Puts and gets arrive | a queue manager's dashboard, **Messages put and got** | lines above 0 while the applications work |
-| An outage shows | stop one queue manager's mq_otel: `systemctl stop mq_otel@QM1` | within 2 minutes **Not reporting** 1 and QM1 red in **Status history**; `systemctl start mq_otel@QM1` turns it back |
-| The applications' messages reach their queue manager | IyziTrace | one broker `jms://<host>:<port>` per queue manager, with its queues |
-
-## Day-2 operations
-
-| Task | Commands |
-|---|---|
-| Add a queue manager | phase 1 on it, then phase 3 "For each queue manager" with its name |
-| Remove a queue manager | `systemctl disable --now mq_otel@QM1`, then `rm /etc/mq_otel/QM1.env /etc/mq_otel/QM1.pw` |
-| Change `iyzmon`'s password | write it into `/etc/mq_otel/QM1.pw`, then `systemctl restart mq_otel@QM1` |
-| New queues | nothing: mq_otel finds queues created since its start within an hour |
-| Upgrade mq_otel | phase 2 with the new version, `install -m 0755 /tmp/mq_otel /opt/mq_otel/mq_otel`, then `systemctl restart 'mq_otel@*'` |
-| See what mq_otel does | `journalctl -u mq_otel@QM1 -f` |
+| Add or remove a queue manager | step 1 on it, its block in `config.yml`, `docker restart ibm-mq-metrics` |
+| Change the password | in `config.yml`, `docker restart ibm-mq-metrics` |
+| Upgrade | `docker pull` the new image, `docker rm -f ibm-mq-metrics`, `docker run` it as in step 2 |
+| Remove everything | see [Removing everything](#removing-everything) |
 
 ## Removing everything
-
-On the Java servers: `rm /opt/otel/extensions/ibm-mq-extension.jar`, then restart them.
 
 On the collector's machine:
 
 ```bash
-systemctl disable --now 'mq_otel@*'
-rm -r /etc/mq_otel /opt/mq_otel /etc/systemd/system/mq_otel@.service
-systemctl daemon-reload
-userdel -r mqotel
+docker rm -f ibm-mq-metrics
+rm -r /etc/ibm-mq-metrics
 ```
 
-On each queue manager, as an MQ administrator, then on its host as root:
+On the Java servers: `rm /opt/otel/extensions/ibm-mq-extension.jar`, then restart them.
 
-```bash
-curl -fLO https://raw.githubusercontent.com/iyzitrace/iyzitrace-poc/main/collectors/ibm-mq/remove-monitor-authorities.mqsc
-runmqsc QM1 < remove-monitor-authorities.mqsc
-userdel iyzmon
-groupdel iyzmon
-```
+On each queue manager, as an MQ administrator:
+
+- **A (your own user).** The user stays yours. To take back what A.1 added, in `runmqsc QM1`
+  (authorities the user had before step 1 go too):
+
+  ```text
+  SET AUTHREC OBJTYPE(QMGR) GROUP('<group>') AUTHRMV(CONNECT, INQ, DSP)
+  SET AUTHREC PROFILE('SYSTEM.ADMIN.COMMAND.QUEUE') OBJTYPE(QUEUE) GROUP('<group>') AUTHRMV(PUT, INQ, DSP)
+  SET AUTHREC PROFILE('SYSTEM.DEFAULT.MODEL.QUEUE') OBJTYPE(QUEUE) GROUP('<group>') AUTHRMV(GET, INQ, DSP)
+  SET AUTHREC PROFILE('**') OBJTYPE(QUEUE) GROUP('<group>') AUTHRMV(INQ, DSP)
+  SET AUTHREC PROFILE('**') OBJTYPE(CHANNEL) GROUP('<group>') AUTHRMV(DSP)
+  SET AUTHREC PROFILE('**') OBJTYPE(CLNTCONN) GROUP('<group>') AUTHRMV(DSP)
+  ```
+
+  If you created `IYZI.MON.SVRCONN` in A.2, also:
+
+  ```text
+  SET CHLAUTH('IYZI.MON.SVRCONN') TYPE(ADDRESSMAP) ACTION(REMOVEALL)
+  STOP CHANNEL('IYZI.MON.SVRCONN') MODE(FORCE) STATUS(INACTIVE)
+  DELETE CHANNEL('IYZI.MON.SVRCONN')
+  ```
+
+- **B (`iyzmon`).** The authorities and the channel, then the user on the host as root:
+
+  ```bash
+  curl -fLO https://raw.githubusercontent.com/iyzitrace/iyzitrace-poc/main/collectors/ibm-mq/remove-monitor-authorities.mqsc
+  runmqsc QM1 < remove-monitor-authorities.mqsc
+  userdel iyzmon
+  groupdel iyzmon
+  ```
 
 In Grafana, delete the three IBM MQ dashboards.
+
+## Good to know
+
+- A stopped or inactive channel is not reported: it drops out of the channel lists. A retrying
+  channel shows.
+- For a queue manager it cannot reach, the container keeps sending its last status;
+  `ibm_mq_heartbeat` is 0 then, and the dashboards show it as **Not reporting**.
+- `ibm_mq_oldest_msg_age_microseconds` holds seconds, despite its name.
 
 ## When something does not work
 
 | What you see | What to do |
 |---|---|
-| `MQRC_NOT_AUTHORIZED [2035]` in the mq_otel log | the channel rule or the password: check `IYZI.MON.SVRCONN`'s `CHLAUTH` rule, the address in it and `/etc/mq_otel/<QMNAME>.pw`; the queue manager's error log names the refused user |
-| `MQRC_HOST_NOT_AVAILABLE [2538]` or `[2059]` | the address or port in `IBMMQ_CONNECTION_CONNNAME`, or a firewall between the machines |
-| `Directory '/home/mqotel/.mqm' could not be created` | `mqotel` was created without its home: `usermod -d /var/lib/mq_otel mqotel`, then `mkdir -p /var/lib/mq_otel && chown mqotel:mqotel /var/lib/mq_otel` |
-| `AMQ8077W` or `AMQ8245W` for `iyzmon` in the queue manager's error log | an authority is missing: run `monitor-authorities.mqsc` again on that queue manager |
-| Depths are shown but no puts or gets | the collector has no `delta_to_cumulative` (phase 3) |
-| A queue is missing | it starts with `SYSTEM.` or `AMQ.`, or it was created less than an hour ago |
-| Oldest message is always 0 | queue monitoring is off: `ALTER QMGR MONQ(MEDIUM)` (phase 1) |
-| All queue managers show as one broker `jms` | the IBM MQ extension is not loaded on the Java server (phase 4): `ls /opt/otel/extensions`, and the agent option must name the folder |
-| A queue manager shows as broker `jms://<host>:<port>` but not linked to its metrics | `IBMMQ_CONNECTION_METADATAVALUES` is not the host and port the applications use, or the collector lacks `groupbyattrs/ibmmq` (phase 3) |
+| reason `2035` when connecting, in `docker logs ibm-mq-metrics` | the channel rule, its IP address or the password |
+| reason `2538` or `2059` | the host or port in `config.yml`, or a firewall |
+| `AMQ8077W` or `AMQ8245W` for `iyzmon` in the queue manager's error log | an authority is missing: run `monitor-authorities.mqsc` again |
+| `Permission denied` for `config.yml` | after `chmod 600` its owner must be 65532 (step 2); with SELinux, `:ro,Z` instead of `:ro` |
+| the log is fine but no data | the collector does not listen where the container sends (step 2, "Which collector"), or `--network host` is missing |
+| oldest message always 0 | `ALTER QMGR MONQ(MEDIUM)` (step 1) |
+| a queue is missing | it starts with `AMQ.` or a `SYSTEM.` prefix in `queueFilters` |
+| one broker `jms` for all | the extension is not in `/opt/otel/extensions` (step 3) |

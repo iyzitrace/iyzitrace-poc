@@ -1,9 +1,9 @@
-* Read-only authorities for IyziTrace's IBM MQ metrics (mq_otel), for one queue manager.
+* Read-only authorities of IyziTrace's IBM MQ metrics container, for one queue manager.
 * Run on each queue manager as an MQ administrator:
 *   runmqsc QMNAME < monitor-authorities.mqsc
 * The operating-system group iyzmon, and a user in it, must exist on the queue manager's host first
 * (docs/07-ibm-mq.md, step 1). Nothing here allows reading, writing or removing an application's
-* messages: on application queues the group gets display and inquire only.
+* messages, or changing any object: on queues and channels the group gets display and inquire only.
 
 * Connect, and read the queue manager's attributes and status.
 SET AUTHREC OBJTYPE(QMGR) GROUP('iyzmon') AUTHADD(CONNECT, INQ, DSP)
@@ -13,12 +13,9 @@ SET AUTHREC OBJTYPE(QMGR) GROUP('iyzmon') AUTHADD(CONNECT, INQ, DSP)
 SET AUTHREC PROFILE('SYSTEM.ADMIN.COMMAND.QUEUE') OBJTYPE(QUEUE) GROUP('iyzmon') AUTHADD(PUT, INQ, DSP)
 SET AUTHREC PROFILE('SYSTEM.DEFAULT.MODEL.QUEUE') OBJTYPE(QUEUE) GROUP('iyzmon') AUTHADD(GET, INQ, DSP)
 
-* Status of every queue (depth, oldest message, last put and get) and every channel.
+* Status of every queue (depth, oldest message, time on queue) and every channel.
 SET AUTHREC PROFILE('**') OBJTYPE(QUEUE) GROUP('iyzmon') AUTHADD(INQ, DSP)
 SET AUTHREC PROFILE('**') OBJTYPE(CHANNEL) GROUP('iyzmon') AUTHADD(DSP)
-* Client-connection channels are a separate object type; without this, every channel discovery logs
+* Client-connection channels are a separate object type; without this, every channel inquiry logs
 * AMQ8245W for them.
 SET AUTHREC PROFILE('**') OBJTYPE(CLNTCONN) GROUP('iyzmon') AUTHADD(DSP)
-
-* The queue manager's own metrics, which it publishes under the topic $SYS/MQ.
-SET AUTHREC PROFILE('SYSTEM.ADMIN.TOPIC') OBJTYPE(TOPIC) GROUP('iyzmon') AUTHADD(SUB)

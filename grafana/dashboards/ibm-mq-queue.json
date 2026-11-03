@@ -1,7 +1,7 @@
 {
   "uid": "iyzitrace-ibm-mq-queue",
   "title": "IBM MQ - Queue",
-  "description": "One queue: depth, oldest message, time on queue, puts and gets.",
+  "description": "One queue: depth, oldest message, time on queue, readers and writers.",
   "tags": [
     "iyzitrace",
     "ibm-mq"
@@ -48,7 +48,7 @@
           "uid": "${ds}"
         },
         "query": {
-          "query": "label_values(ibmmq_qmgr_status_ratio, qmgr)",
+          "query": "label_values(ibm_mq_manager_status_ratio, ibm_mq_queue_manager)",
           "refId": "qmgr"
         },
         "refresh": 2,
@@ -65,7 +65,7 @@
           "uid": "${ds}"
         },
         "query": {
-          "query": "label_values(ibmmq_queue_depth_ratio{qmgr=\"$qmgr\"}, queue)",
+          "query": "label_values(ibm_mq_queue_depth{ibm_mq_queue_manager=\"$qmgr\"}, messaging_destination_name)",
           "refId": "queue"
         },
         "refresh": 2,
@@ -90,7 +90,7 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "expr": "max(ibmmq_queue_depth_ratio{qmgr=\"$qmgr\", queue=\"$queue\"})",
+          "expr": "max(ibm_mq_queue_depth{ibm_mq_queue_manager=\"$qmgr\", messaging_destination_name=\"$queue\"})",
           "refId": "A",
           "range": false,
           "instant": true
@@ -147,7 +147,7 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "expr": "max(ibmmq_queue_depth_ratio{qmgr=\"$qmgr\", queue=\"$queue\"}) / max(ibmmq_queue_attribute_max_depth_ratio{qmgr=\"$qmgr\", queue=\"$queue\"}) * 100",
+          "expr": "max(ibm_mq_queue_depth{ibm_mq_queue_manager=\"$qmgr\", messaging_destination_name=\"$queue\"}) / max(ibm_mq_max_queue_depth{ibm_mq_queue_manager=\"$qmgr\", messaging_destination_name=\"$queue\"}) * 100",
           "refId": "A",
           "range": false,
           "instant": true
@@ -212,7 +212,7 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "expr": "max(ibmmq_queue_oldest_message_age_ratio{qmgr=\"$qmgr\", queue=\"$queue\"})",
+          "expr": "max(ibm_mq_oldest_msg_age_microseconds{ibm_mq_queue_manager=\"$qmgr\", messaging_destination_name=\"$queue\"})",
           "refId": "A",
           "range": false,
           "instant": true
@@ -265,8 +265,8 @@
     },
     {
       "type": "stat",
-      "title": "Since last get",
-      "description": "Time since a message was last taken.",
+      "title": "Time on queue",
+      "description": "How long recent messages waited before they were taken.",
       "datasource": {
         "type": "prometheus",
         "uid": "${ds}"
@@ -277,7 +277,7 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "expr": "max(ibmmq_queue_time_since_get_ratio{qmgr=\"$qmgr\", queue=\"$queue\"})",
+          "expr": "max(ibm_mq_onqtime_short_period_microseconds{ibm_mq_queue_manager=\"$qmgr\", messaging_destination_name=\"$queue\"} >= 0) / 1e6",
           "refId": "A",
           "range": false,
           "instant": true
@@ -308,7 +308,7 @@
               }
             ]
           },
-          "decimals": 0
+          "decimals": 2
         },
         "overrides": []
       },
@@ -334,7 +334,7 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "expr": "max(ibmmq_queue_input_handles_ratio{qmgr=\"$qmgr\", queue=\"$queue\"})",
+          "expr": "max(ibm_mq_open_input_count{ibm_mq_queue_manager=\"$qmgr\", messaging_destination_name=\"$queue\"})",
           "refId": "A",
           "range": false,
           "instant": true
@@ -395,7 +395,7 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "expr": "max(ibmmq_queue_output_handles_ratio{qmgr=\"$qmgr\", queue=\"$queue\"})",
+          "expr": "max(ibm_mq_open_output_count{ibm_mq_queue_manager=\"$qmgr\", messaging_destination_name=\"$queue\"})",
           "refId": "A",
           "range": false,
           "instant": true
@@ -452,7 +452,7 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "expr": "max(ibmmq_queue_depth_ratio{qmgr=\"$qmgr\", queue=\"$queue\"})",
+          "expr": "max(ibm_mq_queue_depth{ibm_mq_queue_manager=\"$qmgr\", messaging_destination_name=\"$queue\"})",
           "refId": "A",
           "range": true,
           "instant": false,
@@ -499,7 +499,7 @@
     {
       "type": "timeseries",
       "title": "Oldest message and time on queue",
-      "description": "Age of the oldest message, and how long messages waited before they were taken (recent and longer average).",
+      "description": "Age of the oldest message, and how long recent messages waited before they were taken.",
       "datasource": {
         "type": "prometheus",
         "uid": "${ds}"
@@ -510,7 +510,7 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "expr": "max(ibmmq_queue_oldest_message_age_ratio{qmgr=\"$qmgr\", queue=\"$queue\"})",
+          "expr": "max(ibm_mq_oldest_msg_age_microseconds{ibm_mq_queue_manager=\"$qmgr\", messaging_destination_name=\"$queue\"})",
           "refId": "A",
           "range": true,
           "instant": false,
@@ -521,22 +521,11 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "expr": "max(ibmmq_queue_qtime_short_ratio{qmgr=\"$qmgr\", queue=\"$queue\"}) / 1e6",
+          "expr": "max(ibm_mq_onqtime_short_period_microseconds{ibm_mq_queue_manager=\"$qmgr\", messaging_destination_name=\"$queue\"} >= 0) / 1e6",
           "refId": "B",
           "range": true,
           "instant": false,
-          "legendFormat": "time on queue, recent"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${ds}"
-          },
-          "expr": "max(ibmmq_queue_qtime_long_ratio{qmgr=\"$qmgr\", queue=\"$queue\"}) / 1e6",
-          "refId": "C",
-          "range": true,
-          "instant": false,
-          "legendFormat": "time on queue, longer"
+          "legendFormat": "time on queue"
         }
       ],
       "options": {
@@ -578,8 +567,8 @@
     },
     {
       "type": "timeseries",
-      "title": "Messages put and got",
-      "description": "Messages put on and taken from the queue per second.",
+      "title": "Readers and writers",
+      "description": "Applications that have the queue open to read and to put.",
       "datasource": {
         "type": "prometheus",
         "uid": "${ds}"
@@ -590,22 +579,22 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "expr": "sum(rate(ibmmq_queue_mqput_mqput1_count_total{qmgr=\"$qmgr\", queue=\"$queue\"}[5m]))",
+          "expr": "max(ibm_mq_open_input_count{ibm_mq_queue_manager=\"$qmgr\", messaging_destination_name=\"$queue\"})",
           "refId": "A",
           "range": true,
           "instant": false,
-          "legendFormat": "put"
+          "legendFormat": "readers"
         },
         {
           "datasource": {
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "expr": "sum(rate(ibmmq_queue_mqget_count_total{qmgr=\"$qmgr\", queue=\"$queue\"}[5m]))",
+          "expr": "max(ibm_mq_open_output_count{ibm_mq_queue_manager=\"$qmgr\", messaging_destination_name=\"$queue\"})",
           "refId": "B",
           "range": true,
           "instant": false,
-          "legendFormat": "got"
+          "legendFormat": "writers"
         }
       ],
       "options": {
@@ -639,217 +628,10 @@
       },
       "id": 9,
       "gridPos": {
-        "h": 8,
-        "w": 12,
+        "h": 6,
+        "w": 24,
         "x": 0,
         "y": 12
-      }
-    },
-    {
-      "type": "timeseries",
-      "title": "Bytes put and got",
-      "description": "Bytes put on and taken from the queue per second.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${ds}"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${ds}"
-          },
-          "expr": "sum(rate(ibmmq_queue_mqput_bytes_total{qmgr=\"$qmgr\", queue=\"$queue\"}[5m]))",
-          "refId": "A",
-          "range": true,
-          "instant": false,
-          "legendFormat": "put"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${ds}"
-          },
-          "expr": "sum(rate(ibmmq_queue_mqget_bytes_total{qmgr=\"$qmgr\", queue=\"$queue\"}[5m]))",
-          "refId": "B",
-          "range": true,
-          "instant": false,
-          "legendFormat": "got"
-        }
-      ],
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "right",
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
-          "sortBy": "Max",
-          "sortDesc": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "Bps",
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 1,
-            "fillOpacity": 0,
-            "showPoints": "never",
-            "spanNulls": false
-          }
-        },
-        "overrides": []
-      },
-      "id": 10,
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 12
-      }
-    },
-    {
-      "type": "timeseries",
-      "title": "Expired and rolled back",
-      "description": "Messages that expired on the queue, and puts and gets that were rolled back, per second.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${ds}"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${ds}"
-          },
-          "expr": "sum(rate(ibmmq_queue_expired_messages_total{qmgr=\"$qmgr\", queue=\"$queue\"}[5m]))",
-          "refId": "A",
-          "range": true,
-          "instant": false,
-          "legendFormat": "expired"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${ds}"
-          },
-          "expr": "sum(rate(ibmmq_queue_rolled_back_mqget_count_total{qmgr=\"$qmgr\", queue=\"$queue\"}[5m]))",
-          "refId": "B",
-          "range": true,
-          "instant": false,
-          "legendFormat": "rolled back gets"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${ds}"
-          },
-          "expr": "sum(rate(ibmmq_queue_rolled_back_mqput_count_total{qmgr=\"$qmgr\", queue=\"$queue\"}[5m]))",
-          "refId": "C",
-          "range": true,
-          "instant": false,
-          "legendFormat": "rolled back puts"
-        }
-      ],
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "right",
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
-          "sortBy": "Max",
-          "sortDesc": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 1,
-            "fillOpacity": 0,
-            "showPoints": "never",
-            "spanNulls": false
-          }
-        },
-        "overrides": []
-      },
-      "id": 11,
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 20
-      }
-    },
-    {
-      "type": "timeseries",
-      "title": "Uncommitted messages",
-      "description": "Messages put or taken under a transaction that is not committed yet.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${ds}"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${ds}"
-          },
-          "expr": "max(ibmmq_queue_uncommitted_messages_ratio{qmgr=\"$qmgr\", queue=\"$queue\"})",
-          "refId": "A",
-          "range": true,
-          "instant": false,
-          "legendFormat": "uncommitted"
-        }
-      ],
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "right",
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
-          "sortBy": "Max",
-          "sortDesc": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 1,
-            "fillOpacity": 0,
-            "showPoints": "never",
-            "spanNulls": false
-          }
-        },
-        "overrides": []
-      },
-      "id": 12,
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 20
       }
     }
   ]

@@ -1,0 +1,42 @@
+# The lab's copy of collectors/ibm-mq/config.yml: the same file with the lab's values. The lab's
+# monitoring channel maps to iyzmon without a password, so no username and password lines.
+
+# Read every queue manager every 30 seconds.
+taskSchedule:
+  numberOfThreads: 20
+  initialDelaySeconds: 0
+  taskDelaySeconds: 30
+
+queueManagers:
+  - name: "QM1"
+    host: "qm1"
+    port: 1414
+    transportType: "Client"
+    channelName: "IYZI.MON.SVRCONN"
+    # Every queue except temporary ones (AMQ.*) and the queue manager's own SYSTEM.* queues, but with
+    # the dead-letter queue SYSTEM.DEAD.LETTER.QUEUE: an excluded name always wins, so "SYSTEM." would
+    # hide it too. Hence one prefix per group of SYSTEM.* queues.
+    queueFilters: {include: ["*"], exclude: [{type: "STARTSWITH", values: ["AMQ.", "SYSTEM.A", "SYSTEM.B", "SYSTEM.C", "SYSTEM.DDELAY", "SYSTEM.DEF", "SYSTEM.DOTNET", "SYSTEM.DURABLE", "SYSTEM.H", "SYSTEM.I", "SYSTEM.J", "SYSTEM.M", "SYSTEM.N", "SYSTEM.P", "SYSTEM.R", "SYSTEM.S"]}]}
+    channelFilters: {include: ["*"], exclude: [{type: "STARTSWITH", values: ["SYSTEM."]}]}
+
+  - name: "QM2"
+    host: "qm2"
+    port: 1414
+    transportType: "Client"
+    channelName: "IYZI.MON.SVRCONN"
+    queueFilters: {include: ["*"], exclude: [{type: "STARTSWITH", values: ["AMQ.", "SYSTEM.A", "SYSTEM.B", "SYSTEM.C", "SYSTEM.DDELAY", "SYSTEM.DEF", "SYSTEM.DOTNET", "SYSTEM.DURABLE", "SYSTEM.H", "SYSTEM.I", "SYSTEM.J", "SYSTEM.M", "SYSTEM.N", "SYSTEM.P", "SYSTEM.R", "SYSTEM.S"]}]}
+    channelFilters: {include: ["*"], exclude: [{type: "STARTSWITH", values: ["SYSTEM."]}]}
+
+# What the dashboards show. A metric that is not listed here is not collected.
+metrics:
+  "ibm.mq.manager.status": {enabled: true}        # queue manager running or not
+  "ibm.mq.heartbeat": {enabled: true}             # the container reached the queue manager
+  "ibm.mq.queue_manager.uptime": {enabled: true}
+  "ibm.mq.connection.count": {enabled: true}
+  "ibm.mq.queue.depth": {enabled: true}
+  "ibm.mq.max.queue.depth": {enabled: true}
+  "ibm.mq.oldest.msg.age": {enabled: true}
+  "ibm.mq.onqtime.short_period": {enabled: true}  # time messages spend on the queue
+  "ibm.mq.open.input.count": {enabled: true}      # applications reading the queue
+  "ibm.mq.open.output.count": {enabled: true}     # applications writing to the queue
+  "ibm.mq.status": {enabled: true}                # channel status
