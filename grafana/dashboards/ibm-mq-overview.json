@@ -212,7 +212,7 @@
     {
       "type": "stat",
       "title": "Channels not running",
-      "description": "Channels between queue managers that report a status other than Running (retrying, binding, ...). A channel that is stopped or inactive is not reported by the metrics container: it drops out of this list instead of showing as stopped.",
+      "description": "Channels between queue managers that report a status other than Running (retrying, binding, ...). A stopped channel shows as Stopped. An inactive channel has no status in IBM MQ and is not listed, for example the receiving end while its sender is stopped.",
       "datasource": {
         "type": "prometheus",
         "uid": "${ds}"
@@ -1405,7 +1405,7 @@
     {
       "type": "table",
       "title": "Channels",
-      "description": "Sender, receiver and cluster channels with their status, not running first. A channel that is stopped or inactive is not reported by the metrics container: it drops out of this list instead of showing as stopped.",
+      "description": "Sender, receiver and cluster channels with their status, not running first. A stopped channel shows as Stopped. An inactive channel has no status in IBM MQ and is not listed, for example the receiving end while its sender is stopped.",
       "datasource": {
         "type": "prometheus",
         "uid": "${ds}"

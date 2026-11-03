@@ -311,10 +311,10 @@ In Grafana, delete the three IBM MQ dashboards.
 
 ## Good to know
 
-- A stopped or inactive channel is not reported: it drops out of the channel lists. A retrying
-  channel shows.
-- For a queue manager it cannot reach, the container keeps sending its last status;
-  `ibm_mq_heartbeat` is 0 then, and the dashboards show it as **Not reporting**.
+- A stopped channel shows as **Stopped**. An inactive channel has no status in IBM MQ and is not
+  listed, for example the receiving end while its sender is stopped.
+- When the container cannot reach a queue manager, it reports `ibm_mq_heartbeat` 0 for it, and the
+  dashboards show it as **Not reporting** at once.
 - `ibm_mq_oldest_msg_age_microseconds` holds seconds, despite its name.
 
 ## When something does not work
