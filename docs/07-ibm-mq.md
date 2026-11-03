@@ -134,7 +134,8 @@ each block.
 
 **Which collector.** The container sends to the collector on the same machine, with OTLP gRPC on
 `127.0.0.1:4317`, which the collector of docs/03 already listens on. If your collector is elsewhere,
-or takes OTLP only over HTTP, add its address to the `docker run` below, after `--network host`:
+or takes OTLP only over HTTP, add its address to the `docker run` below, after `--network host`
+(what your own collector needs: [Your own collector](#your-own-collector)):
 
 | Your collector | Add to `docker run` |
 |---|---|
@@ -164,6 +165,51 @@ manager.
 
 Without internet on this machine: `docker pull` on one that has it, `docker save <image> -o
 ibm-mq-metrics.tar`, copy the file over, `docker load -i ibm-mq-metrics.tar`.
+
+## Your own collector
+
+Only when the container and the Java servers send to a collector of your own, not the one of
+[03-linux-collector.md](03-linux-collector.md). Nothing IBM MQ-specific is added to it: it receives
+OTLP and passes the data on to IyziTrace unchanged.
+
+| The collector needs | For |
+|---|---|
+| an OTLP receiver the container reaches: gRPC (4317) or HTTP (4318) | the container's metrics (step 2, "Which collector") |
+| a `metrics` pipeline from that receiver to IyziTrace | the dashboards |
+| a `traces` pipeline from the Java agents to IyziTrace | the brokers per queue manager |
+| `server.address` and `server.port` kept on the spans | the IBM MQ extension's attributes: a processor that drops them merges every queue manager into one broker `jms` |
+| `ibm.mq.queue.manager`, `messaging.destination.name`, `ibm.mq.channel.name` and `ibm.mq.channel.type` kept on the metrics | the dashboards group by them |
+
+If your collector already sends metrics and traces to IyziTrace, check only that its OTLP receiver
+listens where the container sends. Otherwise add these parts to its configuration (names as in
+docs/03, collector 0.159; older collectors call the exporter `otlphttp`):
+
+```yaml
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 127.0.0.1:4317
+
+exporters:
+  otlp_http/iyzitrace:
+    endpoint: https://<iyzitrace-host>/ingest/otlp
+    headers:
+      Authorization: Bearer <the department's agent key>
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      exporters: [otlp_http/iyzitrace]
+    traces:
+      receivers: [otlp]
+      exporters: [otlp_http/iyzitrace]
+```
+
+A receiver on `127.0.0.1` takes only what runs on the same machine. If the container runs on
+another machine, write the collector machine's address or `0.0.0.0`, open the port in its firewall
+for that machine only, and set `OTEL_EXPORTER_OTLP_ENDPOINT` in step 2.
 
 ## 3. The Java servers
 
