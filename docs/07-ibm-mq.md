@@ -25,61 +25,88 @@ You need a machine with Docker, usually the one with the collector of
 
 ## 1. The monitoring user
 
-The container connects to every queue manager as one read-only MQ user. On each queue manager the
-user needs:
+The container connects to every queue manager as one MQ user. On each queue manager that user needs
+these authorities, and no more:
 
 | Object | Authorities | Why |
 |---|---|---|
 | the queue manager | connect, inquire, display | connect and read its status |
 | every queue (`**`) | inquire, display | depth, oldest message, time on queue |
-| every channel and client-connection channel (`**`) | display | channel status |
+| every channel (`**`) | display | channel status |
+| every client-connection channel (`**`) | display | channel status |
 | `SYSTEM.ADMIN.COMMAND.QUEUE` | put, inquire, display | send DISPLAY commands |
 | `SYSTEM.DEFAULT.MODEL.QUEUE` | get, inquire, display | receive their answers on a temporary queue |
 
-The user cannot read, put or remove application messages, or change any object. The container
-does not reset queue statistics or read the event queues, so other tools that use them are not
-affected.
+With them the user cannot read, put or remove application messages, or change any object.
 
-**The user.** If you already have a monitoring user for MQ, you can use it. Otherwise create
-`iyzmon` on each queue manager's host, as root (with LDAP, create it there instead):
+Do you already have a monitoring user for MQ? Follow **A**. If not, follow **B**.
 
-```bash
-groupadd iyzmon
-useradd -g iyzmon -s /sbin/nologin iyzmon
-passwd iyzmon
-```
+### A. You have a monitoring user
 
-**The authorities**, on each queue manager, as an MQ administrator. The file grants the table's
-authorities to the group `iyzmon`:
+On each queue manager, as an MQ administrator:
 
-```bash
-curl -fLO https://raw.githubusercontent.com/iyzitrace/iyzitrace-poc/main/collectors/ibm-mq/monitor-authorities.mqsc
-runmqsc QM1 < monitor-authorities.mqsc
-```
+1. Give the user's group the authorities. In `runmqsc QM1`, with your group's name in place of
+   `<group>`:
 
-For your own user, grant them to its group instead (IBM MQ on Linux grants authorities to groups;
-if the queue manager grants them to users, `SecurityPolicy=user`, write `PRINCIPAL` for `GROUP`):
+   ```text
+   SET AUTHREC OBJTYPE(QMGR) GROUP('<group>') AUTHADD(CONNECT, INQ, DSP)
+   SET AUTHREC PROFILE('SYSTEM.ADMIN.COMMAND.QUEUE') OBJTYPE(QUEUE) GROUP('<group>') AUTHADD(PUT, INQ, DSP)
+   SET AUTHREC PROFILE('SYSTEM.DEFAULT.MODEL.QUEUE') OBJTYPE(QUEUE) GROUP('<group>') AUTHADD(GET, INQ, DSP)
+   SET AUTHREC PROFILE('**') OBJTYPE(QUEUE) GROUP('<group>') AUTHADD(INQ, DSP)
+   SET AUTHREC PROFILE('**') OBJTYPE(CHANNEL) GROUP('<group>') AUTHADD(DSP)
+   SET AUTHREC PROFILE('**') OBJTYPE(CLNTCONN) GROUP('<group>') AUTHADD(DSP)
+   ```
 
-```bash
-sed "s/GROUP('iyzmon')/GROUP('<your group>')/" monitor-authorities.mqsc | runmqsc QM1
-```
+   These only add authorities; what the user already has stays. If your queue managers grant
+   authorities to users, not groups (`SecurityPolicy=user` in `qm.ini`), write
+   `PRINCIPAL('<user>')` instead of `GROUP('<group>')`.
 
-Either way it ends with `6 MQSC commands read.` and only adds authorities: what the user already
-has stays.
+2. The channel. If the user already connects through a server-connection channel of its own, keep
+   it. Otherwise create one, open only to the collector machine's IP address (in `runmqsc QM1`):
 
-**The channel**, in `runmqsc QM1`, open only to the collector machine's IP address:
+   ```text
+   DEFINE CHANNEL('IYZI.MON.SVRCONN') CHLTYPE(SVRCONN) TRPTYPE(TCP) DESCR('IyziTrace monitoring') REPLACE
+   SET CHLAUTH('IYZI.MON.SVRCONN') TYPE(ADDRESSMAP) ADDRESS('10.0.0.15') USERSRC(CHANNEL) CHCKCLNT(REQUIRED) DESCR('IyziTrace monitoring') ACTION(REPLACE)
+   ```
 
-```text
-DEFINE CHANNEL('IYZI.MON.SVRCONN') CHLTYPE(SVRCONN) TRPTYPE(TCP) DESCR('IyziTrace monitoring') REPLACE
-SET CHLAUTH('IYZI.MON.SVRCONN') TYPE(ADDRESSMAP) ADDRESS('10.0.0.15') USERSRC(CHANNEL) CHCKCLNT(REQUIRED) DESCR('IyziTrace monitoring') ACTION(REPLACE)
-```
+3. Note the user's name, its password and the channel's name: step 2 needs them.
 
-If your own user already connects through a server-connection channel of its own, you can use that
-channel instead: write its name in `channelName` in step 2.
+### B. You have no monitoring user
 
-If `DISPLAY QMGR MONQ` shows `MONQ(OFF)`, also `ALTER QMGR MONQ(MEDIUM)`: the oldest message needs it.
+1. On each queue manager's host, as root, create the group and the user `iyzmon` (with LDAP,
+   create them there instead):
 
-Repeat on every queue manager. With TLS channels, ask us.
+   ```bash
+   groupadd iyzmon
+   useradd -g iyzmon -s /sbin/nologin iyzmon
+   passwd iyzmon
+   ```
+
+2. On each queue manager, as an MQ administrator, give `iyzmon` the authorities.
+   [monitor-authorities.mqsc](../collectors/ibm-mq/monitor-authorities.mqsc) holds the six
+   commands of A.1 for the group `iyzmon`:
+
+   ```bash
+   curl -fLO https://raw.githubusercontent.com/iyzitrace/iyzitrace-poc/main/collectors/ibm-mq/monitor-authorities.mqsc
+   runmqsc QM1 < monitor-authorities.mqsc
+   ```
+
+   It ends with `6 MQSC commands read.`
+
+3. Create the channel, open only to the collector machine's IP address (in `runmqsc QM1`):
+
+   ```text
+   DEFINE CHANNEL('IYZI.MON.SVRCONN') CHLTYPE(SVRCONN) TRPTYPE(TCP) DESCR('IyziTrace monitoring') REPLACE
+   SET CHLAUTH('IYZI.MON.SVRCONN') TYPE(ADDRESSMAP) ADDRESS('10.0.0.15') USERSRC(CHANNEL) CHCKCLNT(REQUIRED) DESCR('IyziTrace monitoring') ACTION(REPLACE)
+   ```
+
+### Then, in both cases
+
+- If `echo "DISPLAY QMGR MONQ" | runmqsc QM1` shows `MONQ(OFF)`, run `ALTER QMGR MONQ(MEDIUM)`:
+  the oldest message needs it.
+- **Check:** `echo "DISPLAY AUTHREC GROUP('<group>')" | runmqsc QM1` (`iyzmon` in B) lists the
+  profiles of the table: `SYSTEM.ADMIN.COMMAND.QUEUE`, `SYSTEM.DEFAULT.MODEL.QUEUE` and `**`.
+- Repeat on every queue manager. With TLS channels, ask us.
 
 ## 2. The container
 
@@ -102,8 +129,8 @@ lines:
     password: "<the user's password>"
 ```
 
-With your own user, also change `username: "iyzmon"` in each block, and `channelName` if it uses
-its own channel.
+In A, also change `username` (the user's name) and `channelName` (if it keeps its own channel) in
+each block.
 
 **Which collector.** The container sends to the collector on the same machine, with OTLP gRPC on
 `127.0.0.1:4317`, which the collector of docs/03 already listens on. If your collector is elsewhere,
@@ -171,7 +198,51 @@ its own dashboard.
 | Add or remove a queue manager | step 1 on it, its block in `config.yml`, `docker restart ibm-mq-metrics` |
 | Change the password | in `config.yml`, `docker restart ibm-mq-metrics` |
 | Upgrade | `docker pull` the new image, `docker rm -f ibm-mq-metrics`, `docker run` it as in step 2 |
-| Remove everything | `docker rm -f ibm-mq-metrics` and `rm -r /etc/ibm-mq-metrics`; on each queue manager `runmqsc QM1 <` [remove-monitor-authorities.mqsc](../collectors/ibm-mq/remove-monitor-authorities.mqsc) (for your own user, with the `sed` of step 1), `userdel iyzmon`, `groupdel iyzmon`; on the Java servers `rm /opt/otel/extensions/ibm-mq-extension.jar` and a restart |
+| Remove everything | see [Removing everything](#removing-everything) |
+
+## Removing everything
+
+On the collector's machine:
+
+```bash
+docker rm -f ibm-mq-metrics
+rm -r /etc/ibm-mq-metrics
+```
+
+On the Java servers: `rm /opt/otel/extensions/ibm-mq-extension.jar`, then restart them.
+
+On each queue manager, as an MQ administrator:
+
+- **A (your own user).** The user stays yours. To take back what A.1 added, in `runmqsc QM1`
+  (authorities the user had before step 1 go too):
+
+  ```text
+  SET AUTHREC OBJTYPE(QMGR) GROUP('<group>') AUTHRMV(CONNECT, INQ, DSP)
+  SET AUTHREC PROFILE('SYSTEM.ADMIN.COMMAND.QUEUE') OBJTYPE(QUEUE) GROUP('<group>') AUTHRMV(PUT, INQ, DSP)
+  SET AUTHREC PROFILE('SYSTEM.DEFAULT.MODEL.QUEUE') OBJTYPE(QUEUE) GROUP('<group>') AUTHRMV(GET, INQ, DSP)
+  SET AUTHREC PROFILE('**') OBJTYPE(QUEUE) GROUP('<group>') AUTHRMV(INQ, DSP)
+  SET AUTHREC PROFILE('**') OBJTYPE(CHANNEL) GROUP('<group>') AUTHRMV(DSP)
+  SET AUTHREC PROFILE('**') OBJTYPE(CLNTCONN) GROUP('<group>') AUTHRMV(DSP)
+  ```
+
+  If you created `IYZI.MON.SVRCONN` in A.2, also:
+
+  ```text
+  SET CHLAUTH('IYZI.MON.SVRCONN') TYPE(ADDRESSMAP) ACTION(REMOVEALL)
+  STOP CHANNEL('IYZI.MON.SVRCONN') MODE(FORCE) STATUS(INACTIVE)
+  DELETE CHANNEL('IYZI.MON.SVRCONN')
+  ```
+
+- **B (`iyzmon`).** The authorities and the channel, then the user on the host as root:
+
+  ```bash
+  curl -fLO https://raw.githubusercontent.com/iyzitrace/iyzitrace-poc/main/collectors/ibm-mq/remove-monitor-authorities.mqsc
+  runmqsc QM1 < remove-monitor-authorities.mqsc
+  userdel iyzmon
+  groupdel iyzmon
+  ```
+
+In Grafana, delete the three IBM MQ dashboards.
 
 ## Good to know
 
