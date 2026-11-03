@@ -25,7 +25,23 @@ You need a machine with Docker, usually the one with the collector of
 
 ## 1. The monitoring user
 
-On the queue manager's host, as root (with LDAP, create the user there instead):
+The container connects to every queue manager as one read-only MQ user. On each queue manager the
+user needs:
+
+| Object | Authorities | Why |
+|---|---|---|
+| the queue manager | connect, inquire, display | connect and read its status |
+| every queue (`**`) | inquire, display | depth, oldest message, time on queue |
+| every channel and client-connection channel (`**`) | display | channel status |
+| `SYSTEM.ADMIN.COMMAND.QUEUE` | put, inquire, display | send DISPLAY commands |
+| `SYSTEM.DEFAULT.MODEL.QUEUE` | get, inquire, display | receive their answers on a temporary queue |
+
+The user cannot read, put or remove application messages, or change any object. The container
+does not reset queue statistics or read the event queues, so other tools that use them are not
+affected.
+
+**The user.** If you already have a monitoring user for MQ, you can use it. Otherwise create
+`iyzmon` on each queue manager's host, as root (with LDAP, create it there instead):
 
 ```bash
 groupadd iyzmon
@@ -33,36 +49,37 @@ useradd -g iyzmon -s /sbin/nologin iyzmon
 passwd iyzmon
 ```
 
-As an MQ administrator:
+**The authorities**, on each queue manager, as an MQ administrator. The file grants the table's
+authorities to the group `iyzmon`:
 
 ```bash
 curl -fLO https://raw.githubusercontent.com/iyzitrace/iyzitrace-poc/main/collectors/ibm-mq/monitor-authorities.mqsc
 runmqsc QM1 < monitor-authorities.mqsc
 ```
 
-It ends with `6 MQSC commands read.` Then, in `runmqsc QM1`, the channel, open only to the
-collector machine's IP address:
+For your own user, grant them to its group instead (IBM MQ on Linux grants authorities to groups;
+if the queue manager grants them to users, `SecurityPolicy=user`, write `PRINCIPAL` for `GROUP`):
+
+```bash
+sed "s/GROUP('iyzmon')/GROUP('<your group>')/" monitor-authorities.mqsc | runmqsc QM1
+```
+
+Either way it ends with `6 MQSC commands read.` and only adds authorities: what the user already
+has stays.
+
+**The channel**, in `runmqsc QM1`, open only to the collector machine's IP address:
 
 ```text
 DEFINE CHANNEL('IYZI.MON.SVRCONN') CHLTYPE(SVRCONN) TRPTYPE(TCP) DESCR('IyziTrace monitoring') REPLACE
 SET CHLAUTH('IYZI.MON.SVRCONN') TYPE(ADDRESSMAP) ADDRESS('10.0.0.15') USERSRC(CHANNEL) CHCKCLNT(REQUIRED) DESCR('IyziTrace monitoring') ACTION(REPLACE)
 ```
 
+If your own user already connects through a server-connection channel of its own, you can use that
+channel instead: write its name in `channelName` in step 2.
+
 If `DISPLAY QMGR MONQ` shows `MONQ(OFF)`, also `ALTER QMGR MONQ(MEDIUM)`: the oldest message needs it.
 
 Repeat on every queue manager. With TLS channels, ask us.
-
-The user is read-only:
-
-| Authority | On | Why |
-|---|---|---|
-| connect, inquire, display | the queue manager, every queue and channel | status, depth, oldest message, channel status |
-| put | the command queue | sending DISPLAY commands |
-| get | the model queue | receiving their answers on a temporary queue |
-
-`iyzmon` cannot read, put or remove application messages, or change any object. The container
-does not reset queue statistics or read the event queues, so other tools that use them are not
-affected.
 
 ## 2. The container
 
@@ -82,8 +99,11 @@ lines:
   - name: "QM1"
     host: "mq-host-01.example"
     port: 1414
-    password: "<iyzmon's password>"
+    password: "<the user's password>"
 ```
+
+With your own user, also change `username: "iyzmon"` in each block, and `channelName` if it uses
+its own channel.
 
 **Which collector.** The container sends to the collector on the same machine, with OTLP gRPC on
 `127.0.0.1:4317`, which the collector of docs/03 already listens on. If your collector is elsewhere,
@@ -151,7 +171,7 @@ its own dashboard.
 | Add or remove a queue manager | step 1 on it, its block in `config.yml`, `docker restart ibm-mq-metrics` |
 | Change the password | in `config.yml`, `docker restart ibm-mq-metrics` |
 | Upgrade | `docker pull` the new image, `docker rm -f ibm-mq-metrics`, `docker run` it as in step 2 |
-| Remove everything | `docker rm -f ibm-mq-metrics` and `rm -r /etc/ibm-mq-metrics`; on each queue manager `runmqsc QM1 <` [remove-monitor-authorities.mqsc](../collectors/ibm-mq/remove-monitor-authorities.mqsc), `userdel iyzmon`, `groupdel iyzmon`; on the Java servers `rm /opt/otel/extensions/ibm-mq-extension.jar` and a restart |
+| Remove everything | `docker rm -f ibm-mq-metrics` and `rm -r /etc/ibm-mq-metrics`; on each queue manager `runmqsc QM1 <` [remove-monitor-authorities.mqsc](../collectors/ibm-mq/remove-monitor-authorities.mqsc) (for your own user, with the `sed` of step 1), `userdel iyzmon`, `groupdel iyzmon`; on the Java servers `rm /opt/otel/extensions/ibm-mq-extension.jar` and a restart |
 
 ## Good to know
 
