@@ -213,47 +213,31 @@ for that machine only, and set `OTEL_EXPORTER_OTLP_ENDPOINT` in step 2.
 
 ## 3. The Java servers
 
-On every Java server that uses IBM MQ, as root. The agent of [04-java-agent.md](04-java-agent.md)
-is in `/opt/otel`; if yours is elsewhere, use its folder.
+On every Java server that uses IBM MQ:
 
-1. Download the extension next to the agent's other extensions:
+1. Download the extension into the agent's extensions folder (`/opt/otel/extensions` with the agent
+   of [04-java-agent.md](04-java-agent.md)):
 
    ```bash
    mkdir -p /opt/otel/extensions
    cd /opt/otel
    curl -fLo extensions/ibm-mq-extension.jar https://github.com/antreklabs/iyzitrace-otel-java-extensions/releases/download/v0.2.0/ibm-mq-extension-0.2.0.jar
    echo "7efa3024b25055174a138d9b76fb892efa3e6f9efbdddb656172864b6fad6fd8  extensions/ibm-mq-extension.jar" | sha256sum -c -
-   chmod -R a+rX /opt/otel/extensions
    ```
 
-2. Make the agent load the extensions folder. Look for the option in the server's start settings
-   (WildFly standalone: `$JBOSS_HOME/bin/standalone.conf`; Tomcat: `$CATALINA_BASE/bin/setenv.sh`):
+2. Make the agent load it:
+   - **The server already loads an extension** (for example the appserver-deployment extension of
+     docs/04): if its JVM option `-Dotel.javaagent.extensions` names the folder, there is nothing to
+     do. If it names a single `.jar`, put that jar in the folder too and change the option to the
+     folder, `/opt/otel/extensions`.
+   - **The server loads no extension yet:** add `-Dotel.javaagent.extensions=/opt/otel/extensions`
+     to its JVM options, next to `-javaagent` (WildFly: `JAVA_OPTS` in `standalone.conf`; Tomcat:
+     `CATALINA_OPTS` in `setenv.sh`).
 
-   ```bash
-   grep -n "otel.javaagent.extensions" $JBOSS_HOME/bin/standalone.conf
-   ```
+3. Restart the server.
 
-   | What it prints | What to do |
-   |---|---|
-   | `-Dotel.javaagent.extensions=/opt/otel/extensions` | nothing |
-   | nothing | add the line below at the end of the file |
-   | `-Dotel.javaagent.extensions=` with a single `.jar` | change that value to `/opt/otel/extensions` and move the jar into that folder: the agent loads every `.jar` in it |
-
-   The line for WildFly standalone:
-
-   ```bash
-   JAVA_OPTS="$JAVA_OPTS -Dotel.javaagent.extensions=/opt/otel/extensions"
-   ```
-
-   For Tomcat, `CATALINA_OPTS="$CATALINA_OPTS -Dotel.javaagent.extensions=/opt/otel/extensions"` in
-   `setenv.sh`. In WildFly domain mode, `<option value="-Dotel.javaagent.extensions=/opt/otel/extensions"/>`
-   in the server group's `<jvm-options>`.
-
-3. Restart the server the way you normally do. The applications need no change.
-
-**Check:** `pgrep -a java | grep -o "otel.javaagent.extensions=[^ ]*"` prints
-`otel.javaagent.extensions=/opt/otel/extensions`. After a few messages, IyziTrace shows one broker
-per queue manager, `jms://<host>:<port>`. Without the extension it shows a single broker `jms`.
+**Check:** after a few messages, IyziTrace shows one broker per queue manager,
+`jms://<host>:<port>`, instead of a single broker `jms`.
 
 ## 4. The dashboards
 
