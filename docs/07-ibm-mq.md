@@ -19,8 +19,8 @@ Nothing is installed on the queue managers' hosts.
 | [3. The Java servers](#3-the-java-servers) | application server administrator | 5 min and a restart |
 | [4. The dashboards](#4-the-dashboards) | Grafana administrator | 5 min |
 
-You need the collector of [03-linux-collector.md](03-linux-collector.md) and Docker on the same
-machine, and that machine must reach every queue manager's port:
+You need a machine with Docker, usually the one with the collector of
+[03-linux-collector.md](03-linux-collector.md), and it must reach every queue manager's port:
 `timeout 3 bash -c '</dev/tcp/mq-host-01.example/1414' && echo open`.
 
 ## 1. The monitoring user
@@ -85,6 +85,16 @@ lines:
     password: "<iyzmon's password>"
 ```
 
+**Which collector.** The container sends to the collector on the same machine, with OTLP gRPC on
+`127.0.0.1:4317`, which the collector of docs/03 already listens on. If your collector is elsewhere,
+or takes OTLP only over HTTP, add its address to the `docker run` below, after `--network host`:
+
+| Your collector | Add to `docker run` |
+|---|---|
+| this machine, `127.0.0.1:4317` (docs/03) | nothing |
+| another machine or port, OTLP gRPC | `-e OTEL_EXPORTER_OTLP_ENDPOINT=http://<collector>:4317` |
+| OTLP over HTTP | `-e OTEL_EXPORTER_OTLP_ENDPOINT=http://<collector>:4318 -e OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf` |
+
 Then:
 
 ```bash
@@ -100,8 +110,7 @@ docker logs ibm-mq-metrics 2>&1 | grep "Active Channels"
 manager.
 
 Without internet on this machine: `docker pull` on one that has it, `docker save <image> -o
-ibm-mq-metrics.tar`, copy the file over, `docker load -i ibm-mq-metrics.tar`. The collector of
-docs/03 needs no change; one of your own needs an OTLP gRPC receiver on `127.0.0.1:4317`.
+ibm-mq-metrics.tar`, copy the file over, `docker load -i ibm-mq-metrics.tar`.
 
 ## 3. The Java servers
 
@@ -160,7 +169,7 @@ its own dashboard.
 | reason `2538` or `2059` | the host or port in `config.yml`, or a firewall |
 | `AMQ8077W` or `AMQ8245W` for `iyzmon` in the queue manager's error log | an authority is missing: run `monitor-authorities.mqsc` again |
 | `Permission denied` for `config.yml` | owner 65532 (step 2); with SELinux, `:ro,Z` instead of `:ro` |
-| the log is fine but no data | the collector does not listen on `127.0.0.1:4317`, or `--network host` is missing |
+| the log is fine but no data | the collector does not listen where the container sends (step 2, "Which collector"), or `--network host` is missing |
 | oldest message always 0 | `ALTER QMGR MONQ(MEDIUM)` (step 1) |
 | a queue is missing | it starts with `AMQ.` or a `SYSTEM.` prefix in `queueFilters` |
 | one broker `jms` for all | the extension is not in `/opt/otel/extensions` (step 3) |
