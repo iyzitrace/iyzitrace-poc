@@ -142,11 +142,17 @@ or takes OTLP only over HTTP, add its address to the `docker run` below, after `
 | another machine or port, OTLP gRPC | `-e OTEL_EXPORTER_OTLP_ENDPOINT=http://<collector>:4317` |
 | OTLP over HTTP | `-e OTEL_EXPORTER_OTLP_ENDPOINT=http://<collector>:4318 -e OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf` |
 
-Then:
+Recommended, your choice: the file holds the user's password, readable by every user of this
+machine as it is. To keep it to the container alone (it runs as user 65532):
 
 ```bash
 chown 65532 /etc/ibm-mq-metrics/config.yml
 chmod 600 /etc/ibm-mq-metrics/config.yml
+```
+
+Then start it:
+
+```bash
 docker run -d --name ibm-mq-metrics --restart unless-stopped --network host \
   -v /etc/ibm-mq-metrics/config.yml:/etc/ibm-mq-metrics/config.yml:ro \
   ghcr.io/antreklabs/ibm-mq-metrics:dev-c97d56dab294d8e2757d579fecd48ceedf68803a
@@ -259,7 +265,7 @@ In Grafana, delete the three IBM MQ dashboards.
 | reason `2035` when connecting, in `docker logs ibm-mq-metrics` | the channel rule, its IP address or the password |
 | reason `2538` or `2059` | the host or port in `config.yml`, or a firewall |
 | `AMQ8077W` or `AMQ8245W` for `iyzmon` in the queue manager's error log | an authority is missing: run `monitor-authorities.mqsc` again |
-| `Permission denied` for `config.yml` | owner 65532 (step 2); with SELinux, `:ro,Z` instead of `:ro` |
+| `Permission denied` for `config.yml` | after `chmod 600` its owner must be 65532 (step 2); with SELinux, `:ro,Z` instead of `:ro` |
 | the log is fine but no data | the collector does not listen where the container sends (step 2, "Which collector"), or `--network host` is missing |
 | oldest message always 0 | `ALTER QMGR MONQ(MEDIUM)` (step 1) |
 | a queue is missing | it starts with `AMQ.` or a `SYSTEM.` prefix in `queueFilters` |
