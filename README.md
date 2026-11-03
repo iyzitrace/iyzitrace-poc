@@ -46,7 +46,7 @@ are downloaded in the steps:
 | [collectors/linux-host/config.yaml](collectors/linux-host/config.yaml) | the collector's configuration, the same on every machine |
 | [collectors/linux-host/otelcol-contrib.conf.example](collectors/linux-host/otelcol-contrib.conf.example) | the values that differ per machine: address, key, name |
 | [instrumentation/java/otel-agent.properties](instrumentation/java/otel-agent.properties) | the Java agent's settings |
-| [collectors/ibm-mq/monitor-authorities.mqsc](collectors/ibm-mq/monitor-authorities.mqsc), [remove-monitor-authorities.mqsc](collectors/ibm-mq/remove-monitor-authorities.mqsc) | the authorities of the IBM MQ monitoring user on each queue manager, and their removal |
+| [collectors/ibm-mq/monitor-authorities.mqsc](collectors/ibm-mq/monitor-authorities.mqsc), [remove-monitor-authorities.mqsc](collectors/ibm-mq/remove-monitor-authorities.mqsc) | the read-only authorities of the IBM MQ monitoring user on each queue manager, and their removal |
 | [collectors/ibm-mq/config.yml](collectors/ibm-mq/config.yml) | the IBM MQ metrics container's one file, which lists every queue manager |
 | [grafana/dashboards/ibm-mq-overview.json](grafana/dashboards/ibm-mq-overview.json), [ibm-mq-queue-manager.json](grafana/dashboards/ibm-mq-queue-manager.json), [ibm-mq-queue.json](grafana/dashboards/ibm-mq-queue.json) | the IBM MQ dashboards: every queue manager, one queue manager, one queue |
 
@@ -81,9 +81,8 @@ restarted or killed for memory.
 On 2026-11-02, [docs/07-ibm-mq.md](docs/07-ibm-mq.md) on a Rocky Linux 8.10 machine with WildFly 41
 and two applications carrying the IBM MQ JMS client 9.4.1.0, against two IBM MQ 9.4.5.1 developer
 queue managers joined by a sender and receiver channel ([test/ibm-mq](test/ibm-mq/README.md)).
-The published IBM MQ metrics image read both queue managers with the authorities of
-`monitor-authorities.mqsc`. Each queue manager's error log got one `AMQ8077W` per round, for
-`SYSTEM.AUTH.DATA.QUEUE`, which only `mqm` may use. Every query of the three dashboards returned
+The published IBM MQ metrics image read both queue managers with the read-only authorities of
+`monitor-authorities.mqsc`, and the queue managers logged no authority error. Every query of the three dashboards returned
 data through Grafana, depths and oldest-message ages matched `runmqsc`, and a stopped queue manager
 or a stopped container showed as Not reporting and came back. With the IBM MQ extension, IyziTrace
 showed the two queue managers as two brokers. Not covered there: the monitoring channel with a password (the developer

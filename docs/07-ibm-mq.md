@@ -40,7 +40,7 @@ curl -fLO https://raw.githubusercontent.com/iyzitrace/iyzitrace-poc/main/collect
 runmqsc QM1 < monitor-authorities.mqsc
 ```
 
-It ends with `9 MQSC commands read.` Then, in `runmqsc QM1`, the channel, open only to the
+It ends with `6 MQSC commands read.` Then, in `runmqsc QM1`, the channel, open only to the
 collector machine's IP address:
 
 ```text
@@ -52,19 +52,17 @@ If `DISPLAY QMGR MONQ` shows `MONQ(OFF)`, also `ALTER QMGR MONQ(MEDIUM)`: the ol
 
 Repeat on every queue manager. With TLS channels, ask us.
 
-What the authorities allow:
+The user is read-only:
 
 | Authority | On | Why |
 |---|---|---|
 | connect, inquire, display | the queue manager, every queue and channel | status, depth, oldest message, channel status |
-| put / get | the command queue / the model queue | sending commands and receiving their answers |
-| chg | every queue | the container resets every queue's statistics (RESET QSTATS) every round; IBM MQ has no narrower authority, and chg also allows changing a queue's attributes |
-| get, browse | `SYSTEM.ADMIN.CONFIG/PERFM/QMGR.EVENT` | the container reads these event queues, which removes the events it reads |
+| put | the command queue | sending DISPLAY commands |
+| get | the model queue | receiving their answers on a temporary queue |
 
-`iyzmon` cannot read, put or remove application messages. Another tool that reads the queue
-statistics or the event queues gets only part of them. With fewer authorities, the queue manager
-refuses those calls every round and writes each refusal (`AMQ8077W`) to its error log. One
-refusal per round remains in any case: `SYSTEM.AUTH.DATA.QUEUE` is open only to `mqm`.
+`iyzmon` cannot read, put or remove application messages, or change any object. The container
+does not reset queue statistics or read the event queues, so other tools that use them are not
+affected.
 
 ## 2. The container
 
@@ -160,7 +158,7 @@ its own dashboard.
 |---|---|
 | reason `2035` when connecting, in `docker logs ibm-mq-metrics` | the channel rule, its IP address or the password |
 | reason `2538` or `2059` | the host or port in `config.yml`, or a firewall |
-| many `AMQ8077W` for `iyzmon` in the queue manager's error log | an authority is missing: run `monitor-authorities.mqsc` again |
+| `AMQ8077W` or `AMQ8245W` for `iyzmon` in the queue manager's error log | an authority is missing: run `monitor-authorities.mqsc` again |
 | `Permission denied` for `config.yml` | owner 65532 (step 2); with SELinux, `:ro,Z` instead of `:ro` |
 | the log is fine but no data | the collector does not listen on `127.0.0.1:4317`, or `--network host` is missing |
 | oldest message always 0 | `ALTER QMGR MONQ(MEDIUM)` (step 1) |
